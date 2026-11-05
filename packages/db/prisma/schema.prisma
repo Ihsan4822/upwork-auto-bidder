@@ -1,0 +1,283 @@
+// schema.prisma — Upwork Auto Bidder database schema
+// 11 tables as specified in Section 9 of the brief.
+//
+// RULES (from Section 9 and Section 11):
+// - Every table has id, createdAt, updatedAt
+// - Every business table carries profileId (even though MVP has only one profile)
+// - Never delete or rename a column in the same release that stops using it
+// - Add new, migrate data, deprecate, remove later
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Table 1: users ────────────────────────────────────────────────────────────
+// App login for Farid. Passwordless (magic link) in MVP.
+// NEVER stores an Upwork password. Never has an upwork_password column.
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  magicLinkToken      String?   @map("magic_link_token")
+  magicLinkExpiresAt  DateTime? @map("magic_link_expires_at")
+  loginAttempts       Int       @default(0) @map("login_attempts")
+  lastLoginAt         DateTime? @map("last_login_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  profiles            Profile[]
+
+  @@map("users")
+}
+
+// ── Table 2: profiles ─────────────────────────────────────────────────────────
+// The one Upwork profile record. No password column, ever.
+// profileId is on every business table for future multi-profile support.
+model Profile {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  upworkProfileId  String    @unique @map("upwork_profile_id") // Upwork's own profile ID
+  displayName      String    @map("display_name")
+  niches           String[]  // Array of niche strings from NICHES_IN_SCOPE
+  connectionStatus String    @default("DISCONNECTED") @map("connection_status")
+  // Values: CONNECTED | DISCONNECTED | SCOPE_CHANGED (triggers warning)
+  lastConnectedAt  DateTime? @map("last_connected_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user             User             @relation(fields: [userId], references: [id])
+  oauthTokens      OauthToken[]
+  savedSearches    SavedSearch[]
+  jobs             Job[]
+  portfolioItems   PortfolioItem[]
+  reviewActions    ReviewAction[]
+  analyticsEntries AnalyticsEntry[]
+
+  @@index([userId])
+  @@map("profiles")
+}
+
+// ── Table 3: oauth_tokens ─────────────────────────────────────────────────────
+// Encrypted MCP OAuth tokens. NEVER logged. NEVER shown in UI after connection.
+// encryptedAccessToken and encryptedRefreshToken are AES-256 encrypted at rest.
+// The encryption key is OAUTH_TOKEN_ENCRYPTION_KEY in .env.
+model OauthToken {
+  id                   String    @id @default(cuid())
+  profileId            String    @map("profile_id")
+  encryptedAccessToken String    @map("encrypted_access_token") // Never store plaintext
+  encryptedRefreshToken String?  @map("encrypted_refresh_token")
+  scopesGranted        String[]  @map("scopes_granted") // Actual scopes returned by Upwork
+  expiresAt            DateTime? @map("expires_at")
+  revokedAt            DateTime? @map("revoked_at") // Set when Farid clicks Disconnect
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  profile              Profile   @relation(fields: [profileId], references: [id])
+
+  @@index([profileId])
+  @@map("oauth_tokens")
+}
+
+// ── Table 4: saved_searches ───────────────────────────────────────────────────
+// Upwork keyword searches that the worker polls on schedule.
+model SavedSearch {
+  id                  String   @id @default(cuid())
+  profileId           String   @map("profile_id")
+  name                String   // Human-readable label (e.g. "Search A — A Plus Content")
+  queryText           String   @map("query_text") // Keywords sent to MCP search tool
+  filters             Json?    // Optional extra filters (budget range, etc.) as JSON
+  isActive            Boolean  @default(true) @map("is_active")
+  pollIntervalMinutes Int?     @map("poll_interval_minutes") // null = use global default
+  lastPolledAt        DateTime? @map("last_polled_at")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  profile             Profile  @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, isActive])
+  @@map("saved_searches")
+}
+
+// ── Table 5: jobs ─────────────────────────────────────────────────────────────
+// One row per Upwork job. Deduplicated by upworkJobId.
+// All fields nullable — null means "not available from MCP", shown as "Not Available" in UI.
+// Never guess a null value.
+model Job {
+  id                  String    @id @default(cuid())
+  profileId           String    @map("profile_id")
+  upworkJobId         String    @unique @map("upwork_job_id") // Upwork's job ID, never duplicated
+  title               String?
+  description         String?
+  budgetType          String?   @map("budget_type") // "HOURLY" | "FIXED"
+  budgetAmountFixed   Decimal?  @map("budget_amount_fixed") // For FIXED jobs
+  hourlyRateMin       Decimal?  @map("hourly_rate_min")
+  hourlyRateMax       Decimal?  @map("hourly_rate_max")
+  clientCountry       String?   @map("client_country")
+  clientTotalSpend    Decimal?  @map("client_total_spend") // null if not available
+  clientHireRate      Decimal?  @map("client_hire_rate")  // null if not available
+  paymentVerified     Boolean?  @map("payment_verified")  // null if not returned by MCP
+  proposalCount       Int?      @map("proposal_count")
+  postedAt            DateTime? @map("posted_at")
+  skills              String[]  // Array of skill tags
+  jobUrl              String?   @map("job_url")
+
+  // Status tracks where this job is in the pipeline
+  // Values: NEW | FILTERED_OUT | SCORED_PENDING | SCORED | DRAFT_READY |
+  //         IN_REVIEW | APPROVED | SUBMITTED_MANUALLY | SKIPPED | EXPIRED
+  status              String    @default("NEW")
+
+  // Set when status = FILTERED_OUT. Plain words, e.g. "Below Fee Floor"
+  filterReason        String?   @map("filter_reason")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  profile             Profile        @relation(fields: [profileId], references: [id])
+  scores              JobScore[]
+  drafts              Draft[]
+  reviewActions       ReviewAction[]
+  analyticsEntry      AnalyticsEntry?
+
+  @@index([profileId, status])
+  @@index([profileId, createdAt])
+  @@map("jobs")
+}
+
+// ── Table 6: job_scores ───────────────────────────────────────────────────────
+// AI scoring output. Validated by Zod before storing. Never trust raw AI output.
+model JobScore {
+  id            String   @id @default(cuid())
+  profileId     String   @map("profile_id")
+  jobId         String   @map("job_id")
+  label         String   // "APPLY" | "APPLY_PLUS_BOOST" | "SKIP"
+  score         Int      // 0-100
+  reasons       Json     // Array of reason strings (3-5), structured JSON
+  modelName     String   @map("model_name") // e.g. "gemini-1.5-pro"
+  promptVersion String   @map("prompt_version") // Git commit hash of the prompt file
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  job           Job      @relation(fields: [jobId], references: [id])
+
+  @@index([jobId])
+  @@index([profileId, label])
+  @@map("job_scores")
+}
+
+// ── Table 7: drafts ───────────────────────────────────────────────────────────
+// Proposal drafts. Each edit creates a new version — originals never overwritten.
+model Draft {
+  id                String    @id @default(cuid())
+  profileId         String    @map("profile_id")
+  jobId             String    @map("job_id")
+  version           Int       // Auto-incremented per job: 1, 2, 3...
+  draftText         String    @map("draft_text")
+  // Status values: GENERATED | FAILED | IN_REVIEW | APPROVED | DISCARDED
+  status            String    @default("GENERATED")
+  failureReason     String?   @map("failure_reason") // Set when status = FAILED
+  portfolioItemId   String?   @map("portfolio_item_id") // Suggested portfolio item
+  wordCount         Int?      @map("word_count")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  job               Job            @relation(fields: [jobId], references: [id])
+  portfolioItem     PortfolioItem? @relation(fields: [portfolioItemId], references: [id])
+
+  @@unique([jobId, version]) // One version number per job
+  @@index([jobId])
+  @@index([profileId, status])
+  @@map("drafts")
+}
+
+// ── Table 8: portfolio_items ──────────────────────────────────────────────────
+// Farid's portfolio samples. Links are entered by Farid only. Never invented.
+model PortfolioItem {
+  id        String   @id @default(cuid())
+  profileId String   @map("profile_id")
+  title     String
+  nicheTags String[] @map("niche_tags") // Tags from NICHES_IN_SCOPE
+  link      String   // URL to the portfolio sample — human-entered only
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  profile   Profile  @relation(fields: [profileId], references: [id])
+  drafts    Draft[]
+
+  @@index([profileId, isActive])
+  @@map("portfolio_items")
+}
+
+// ── Table 9: review_actions ───────────────────────────────────────────────────
+// Full audit trail of everything Farid does in the review queue.
+model ReviewAction {
+  id        String   @id @default(cuid())
+  profileId String   @map("profile_id")
+  jobId     String   @map("job_id")
+  // Action values: APPROVED | SKIPPED | EDITED_DRAFT | MARKED_SUBMITTED |
+  //                CHANGED_PORTFOLIO | ADDED_NOTE | CHANGED_LABEL
+  action    String
+  actorId   String   @map("actor_id") // User ID who performed the action
+  note      String?  // Optional note Farid adds
+  metadata  Json?    // Extra context (e.g. old/new draft version numbers)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  job       Job     @relation(fields: [jobId], references: [id])
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  @@index([jobId])
+  @@index([profileId, action])
+  @@map("review_actions")
+}
+
+// ── Table 10: analytics_entries ───────────────────────────────────────────────
+// Manual entries by Farid only. The app never fills these automatically.
+// If Farid doesn't enter a value, the field is null — shown as "Not Tracked" in UI.
+model AnalyticsEntry {
+  id              String    @id @default(cuid())
+  profileId       String    @map("profile_id")
+  jobId           String    @unique @map("job_id") // One analytics row per job
+  submittedAt     DateTime? @map("submitted_at")   // When Farid marked as submitted
+  clientViewed    Boolean?  @map("client_viewed")  // Manual entry by Farid
+  clientReplied   Boolean?  @map("client_replied") // Manual entry by Farid
+  connectsSpent   Int?      @map("connects_spent") // Manual entry by Farid; app spends 0
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  job             Job     @relation(fields: [jobId], references: [id])
+  profile         Profile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId])
+  @@map("analytics_entries")
+}
+
+// ── Table 11: settings ────────────────────────────────────────────────────────
+// Runtime-configurable key-value pairs for fee floors, feature flags, poll interval.
+// All keys are defined in packages/config/src/settings.ts (SETTINGS_KEYS).
+// Changing a floor here affects all logic without a code deploy.
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique // From SETTINGS_KEYS or FEATURE_FLAG_KEYS
+  value       String   // Stored as string; parsed to correct type by the settings service
+  description String?  // Human-readable description of what this setting controls
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}

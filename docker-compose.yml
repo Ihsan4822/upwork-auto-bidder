@@ -1,0 +1,42 @@
+# docker-compose.yml — Local development dependencies only
+# Starts PostgreSQL and Redis. The web and worker apps run with pnpm dev.
+#
+# Usage:
+#   docker compose up -d          # Start in background
+#   docker compose down           # Stop and remove containers
+#   docker compose down -v        # Stop and remove containers AND volumes (deletes all data)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: upwork_bidder_postgres
+    environment:
+      POSTGRES_USER: upwork_bidder
+      POSTGRES_PASSWORD: local_dev_password_only
+      POSTGRES_DB: upwork_bidder
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U upwork_bidder"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: upwork_bidder_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

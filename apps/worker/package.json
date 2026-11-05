@@ -1,0 +1,26 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@upwork-bidder/config": "workspace:*",
+    "@upwork-bidder/db": "workspace:*",
+    "@upwork-bidder/core": "workspace:*",
+    "@upwork-bidder/ai": "workspace:*",
+    "bullmq": "^5.28.0",
+    "ioredis": "^5.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "tsx": "^4.19.0",
+    "typescript": "*"
+  }
+}

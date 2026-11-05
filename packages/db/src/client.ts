@@ -1,0 +1,30 @@
+/**
+ * client.ts — Singleton Prisma client.
+ *
+ * WHY SINGLETON: Next.js hot reload creates new module instances in development,
+ * causing "too many connections" errors if Prisma is instantiated per module.
+ * The global singleton pattern prevents this.
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+// Extend globalThis to avoid TypeScript errors on the global property
+declare global {
+  // eslint-disable-next-line no-var
+  var __prisma: PrismaClient | undefined;
+}
+
+function createPrismaClient(): PrismaClient {
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
+}
+
+// In production: always create a new instance (single long-lived process)
+// In development: reuse the global instance across hot reloads
+export const prisma: PrismaClient =
+  globalThis.__prisma ?? createPrismaClient();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.__prisma = prisma;
+}
