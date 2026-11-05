@@ -1,5 +1,5 @@
 # Upwork Auto Bidder — Internal MVP
-**Owner:** Farid Malik | **Status:** Phase 1 — Skeleton + Docs
+**Owner:** Muhammad Ihsan | **Status:** Phase 1 — Skeleton + Docs
 
 ---
 
