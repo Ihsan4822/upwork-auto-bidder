@@ -95,7 +95,12 @@ export async function runWorkerIteration(): Promise<void> {
       }
     }
   } catch (err: unknown) {
-    console.error('[Worker] Fatal error during iteration:', err);
+    if (err instanceof Error && err.message.includes("Can't reach database server")) {
+      console.warn('[Worker] PostgreSQL server at localhost:5432 is not currently running.');
+      console.warn('[Worker] Please start PostgreSQL (or provide a cloud DATABASE_URL in .env). Worker will retry on next scheduled interval.');
+    } else {
+      console.error('[Worker] Fatal error during iteration:', err);
+    }
   } finally {
     isRunning = false;
   }
