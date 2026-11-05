@@ -1,6 +1,40 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+interface Stats {
+  totalJobs: number;
+  filteredOut: number;
+  scoredPending: number;
+  draftReady: number;
+  skipped: number;
+  submitted: number;
+  totalScored: number;
+  applyCount: number;
+  boostCount: number;
+}
+
 export default function HomePage() {
+  const [stats, setStats] = useState<Stats>({
+    totalJobs: 0,
+    filteredOut: 0,
+    scoredPending: 0,
+    draftReady: 0,
+    skipped: 0,
+    submitted: 0,
+    totalScored: 0,
+    applyCount: 0,
+    boostCount: 0,
+  });
+
+  useEffect(() => {
+    fetch('/api/jobs/stats')
+      .then((res) => res.json())
+      .then((data) => setStats(data))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="space-y-8">
       {/* Safe Model Notification Banner */}
@@ -21,44 +55,72 @@ export default function HomePage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
           <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Jobs Found</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">0</p>
-          <span className="text-xs text-slate-400 mt-1 block">Awaiting MCP connection</span>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{stats.totalJobs}</p>
+          <span className="text-xs text-slate-400 mt-1 block">Polled via MCP saved searches</span>
         </div>
 
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+        <Link
+          href="/jobs/filtered"
+          className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-slate-300 transition-colors block"
+        >
           <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Filtered Out</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">0</p>
-          <span className="text-xs text-slate-400 mt-1 block">Floors: $15/hr & $100 fixed</span>
-        </div>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{stats.filteredOut}</p>
+          <span className="text-xs text-red-600 font-medium mt-1 block">View audit reasons →</span>
+        </Link>
 
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Drafts Ready</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">0</p>
-          <span className="text-xs text-slate-400 mt-1 block">Pending human review</span>
-        </div>
+        <Link
+          href="/jobs/scored"
+          className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-slate-300 transition-colors block"
+        >
+          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Scored by AI</p>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{stats.totalScored}</p>
+          <span className="text-xs text-emerald-600 font-medium mt-1 block">
+            {stats.applyCount} Apply · {stats.boostCount} Boost →
+          </span>
+        </Link>
 
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+        <Link
+          href="/queue"
+          className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-slate-300 transition-colors block"
+        >
           <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Submitted Manually</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">0</p>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{stats.submitted}</p>
           <span className="text-xs text-slate-400 mt-1 block">Zero Connects spent by app</span>
-        </div>
+        </Link>
       </div>
 
-      {/* Next Action Box */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-        <h3 className="text-base font-semibold text-slate-900">Step 2: Connect Upwork Read-Only MCP</h3>
-        <p className="text-sm text-slate-600 mt-1 leading-relaxed">
-          To begin monitoring jobs and generating proposal drafts, review the permission boundaries and authorize
-          the read-only connection through the official Upwork MCP server.
-        </p>
+      {/* Navigation Quick Links */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-base font-semibold text-slate-900">Module 2: Hard Filters Audit</h3>
+          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+            Verify rejection reasons in real time. Hard filters block jobs below the $15/hr hourly or $100 fixed floor,
+            unverified payment clients, and jobs outside Farid&apos;s Amazon niches.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/jobs/filtered"
+              className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded transition-colors inline-block"
+            >
+              Inspect Filtered Jobs ({stats.filteredOut}) →
+            </Link>
+          </div>
+        </div>
 
-        <div className="mt-5">
-          <Link
-            href="/settings/connection"
-            className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
-          >
-            Review Permissions & Connect Upwork →
-          </Link>
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-base font-semibold text-slate-900">Module 3: AI Scoring Results</h3>
+          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+            Review Gemini 1.5 Pro evaluations for passing jobs. Every score provides 3 to 5 structured reasons and honest
+            nulls for unavailable client fields.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/jobs/scored"
+              className="text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 rounded transition-colors inline-block"
+            >
+              Inspect Scored Jobs ({stats.totalScored}) →
+            </Link>
+          </div>
         </div>
       </div>
     </div>

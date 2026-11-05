@@ -33,6 +33,12 @@ export default function RootLayout({
               <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
                 Dashboard
               </Link>
+              <Link href="/jobs/scored" className="text-slate-600 hover:text-slate-900 transition-colors">
+                Scored Jobs
+              </Link>
+              <Link href="/jobs/filtered" className="text-slate-600 hover:text-slate-900 transition-colors">
+                Filtered Out
+              </Link>
               <Link href="/queue" className="text-slate-600 hover:text-slate-900 transition-colors">
                 Review Queue
               </Link>
