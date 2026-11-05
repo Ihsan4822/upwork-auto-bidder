@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 
 export async function GET() {
+  const fallback = {
+    status: 'DISCONNECTED',
+    displayName: 'Farid Malik',
+    registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
+    scopesGranted: [],
+  };
+
   try {
-    // Single profile for MVP
-    const profile = await prisma.profile.findFirst({
+    // 1.5s fail-fast timeout so the UI never hangs if PostgreSQL is offline
+    const queryPromise = prisma.profile.findFirst({
       include: {
         oauthTokens: {
           where: { revokedAt: null },
@@ -14,13 +21,14 @@ export async function GET() {
       },
     });
 
+    const timeoutPromise = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('DB_TIMEOUT')), 1500),
+    );
+
+    const profile = await Promise.race([queryPromise, timeoutPromise]);
+
     if (!profile) {
-      return NextResponse.json({
-        status: 'DISCONNECTED',
-        displayName: 'Farid Malik',
-        registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
-        scopesGranted: [],
-      });
+      return NextResponse.json(fallback);
     }
 
     const activeToken = profile.oauthTokens[0];
@@ -33,14 +41,8 @@ export async function GET() {
       scopesGranted: activeToken?.scopesGranted ?? [],
       registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
     });
-  } catch (err: unknown) {
-    // If DB is offline or not yet connected in dev, return a safe fallback state
-    return NextResponse.json({
-      status: 'DISCONNECTED',
-      displayName: 'Farid Malik',
-      registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
-      scopesGranted: [],
-      error: err instanceof Error ? err.message : 'Database error',
-    });
+  } catch {
+    // Return safe disconnected state immediately on any error or timeout
+    return NextResponse.json(fallback);
   }
 }

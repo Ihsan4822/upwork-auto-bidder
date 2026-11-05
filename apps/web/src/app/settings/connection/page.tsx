@@ -14,7 +14,7 @@ interface ConnectionState {
 export default function UpworkConnectionPage() {
   const consent = getPlainLanguageConsentText();
   const [connection, setConnection] = useState<ConnectionState>({
-    status: 'LOADING',
+    status: 'DISCONNECTED',
     registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
   });
   const [actionLoading, setActionLoading] = useState(false);
@@ -26,8 +26,14 @@ export default function UpworkConnectionPage() {
   }, []);
 
   async function fetchStatus() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+
     try {
-      const res = await fetch('/api/auth/upwork/status');
+      const res = await fetch('/api/auth/upwork/status', {
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
       if (res.ok) {
         const data = await res.json();
         setConnection(data);

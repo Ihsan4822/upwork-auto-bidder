@@ -2,17 +2,49 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 
 export async function GET() {
-  try {
-    const totalJobs = await prisma.job.count();
-    const filteredOut = await prisma.job.count({ where: { status: 'FILTERED_OUT' } });
-    const scoredPending = await prisma.job.count({ where: { status: 'SCORED_PENDING' } });
-    const draftReady = await prisma.job.count({ where: { status: 'DRAFT_READY' } });
-    const skipped = await prisma.job.count({ where: { status: 'SKIPPED' } });
-    const submitted = await prisma.job.count({ where: { status: 'SUBMITTED_MANUALLY' } });
+  const fallback = {
+    totalJobs: 0,
+    filteredOut: 0,
+    scoredPending: 0,
+    draftReady: 0,
+    skipped: 0,
+    submitted: 0,
+    totalScored: 0,
+    applyCount: 0,
+    boostCount: 0,
+  };
 
-    const totalScored = await prisma.jobScore.count();
-    const applyCount = await prisma.jobScore.count({ where: { label: 'APPLY' } });
-    const boostCount = await prisma.jobScore.count({ where: { label: 'APPLY_PLUS_BOOST' } });
+  try {
+    const timeout = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), 1500),
+    );
+
+    const dataPromise = Promise.all([
+      prisma.job.count(),
+      prisma.job.count({ where: { status: 'FILTERED_OUT' } }),
+      prisma.job.count({ where: { status: 'SCORED_PENDING' } }),
+      prisma.job.count({ where: { status: 'DRAFT_READY' } }),
+      prisma.job.count({ where: { status: 'SKIPPED' } }),
+      prisma.job.count({ where: { status: 'SUBMITTED_MANUALLY' } }),
+      prisma.jobScore.count(),
+      prisma.jobScore.count({ where: { label: 'APPLY' } }),
+      prisma.jobScore.count({ where: { label: 'APPLY_PLUS_BOOST' } }),
+    ]);
+
+    const res = await Promise.race([dataPromise, timeout]);
+    if (!res) return NextResponse.json(fallback);
+
+    const [
+      totalJobs,
+      filteredOut,
+      scoredPending,
+      draftReady,
+      skipped,
+      submitted,
+      totalScored,
+      applyCount,
+      boostCount,
+    ] = res;
 
     return NextResponse.json({
       totalJobs,
@@ -26,16 +58,6 @@ export async function GET() {
       boostCount,
     });
   } catch {
-    return NextResponse.json({
-      totalJobs: 0,
-      filteredOut: 0,
-      scoredPending: 0,
-      draftReady: 0,
-      skipped: 0,
-      submitted: 0,
-      totalScored: 0,
-      applyCount: 0,
-      boostCount: 0,
-    });
+    return NextResponse.json(fallback);
   }
 }
