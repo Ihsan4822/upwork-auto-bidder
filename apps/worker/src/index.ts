@@ -4,6 +4,37 @@
  * Runs scheduled polling, filtering, and scoring jobs.
  */
 
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Native environment variable loader for monorepo dev
+function loadEnv() {
+  const envPaths = [
+    resolve(process.cwd(), '.env'),
+    resolve(process.cwd(), '../../.env'),
+    resolve(__dirname, '../.env'),
+    resolve(__dirname, '../../../.env'),
+  ];
+  for (const envPath of envPaths) {
+    if (existsSync(envPath)) {
+      const lines = readFileSync(envPath, 'utf8').split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const [key, ...rest] = trimmed.split('=');
+          const val = rest.join('=').trim().replace(/^["']|["']$/g, '');
+          const cleanKey = key.trim();
+          if (cleanKey && !process.env[cleanKey]) {
+            process.env[cleanKey] = val;
+          }
+        }
+      }
+    }
+  }
+}
+
+loadEnv();
+
 import { prisma } from '@upwork-bidder/db';
 import { decryptToken } from '@upwork-bidder/core';
 import { UpworkMcpClient } from '@upwork-bidder/ai';

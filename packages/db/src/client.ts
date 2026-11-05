@@ -8,6 +8,11 @@
 
 import { PrismaClient } from '@prisma/client';
 
+// Ensure DATABASE_URL is defined so Prisma Client never crashes on initialization
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/upwork_bidder';
+}
+
 // Extend globalThis to avoid TypeScript errors on the global property
 declare global {
   // eslint-disable-next-line no-var
@@ -16,7 +21,7 @@ declare global {
 
 function createPrismaClient(): PrismaClient {
   return new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 }
 
