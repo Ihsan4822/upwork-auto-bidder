@@ -36,10 +36,29 @@ export async function GET(request: NextRequest) {
     const returnedScopes = ['jobs:read', 'profile:read']; // Received from OAuth provider
     const simulatedAccessToken = `uat_${code.slice(0, 16)}_${Date.now()}`;
 
-    // Find profile
-    const profile = await prisma.profile.findFirst();
+    // Find or initialize profile
+    let profile = await prisma.profile.findFirst();
     if (!profile) {
-      throw new Error('No profile registered in database. Please run seed first.');
+      const user = await prisma.user.upsert({
+        where: { email: 'ihsan4822@gmail.com' },
+        update: {},
+        create: { email: 'ihsan4822@gmail.com' },
+      });
+      profile = await prisma.profile.create({
+        data: {
+          userId: user.id,
+          upworkProfileId: 'farid_malik_profile',
+          displayName: 'Farid Malik',
+          niches: [
+            'Amazon Listing Images',
+            'A+ Content / EBC',
+            'Storefront Design',
+            'Brand Story Design',
+            'Packaging & Box Design',
+          ],
+          connectionStatus: 'DISCONNECTED',
+        },
+      });
     }
 
     // Security check & Encryption (throws if scopes violate safe model)

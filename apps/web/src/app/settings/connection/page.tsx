@@ -23,6 +23,19 @@ export default function UpworkConnectionPage() {
   // Load current connection status from server API
   useEffect(() => {
     fetchStatus();
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      const success = params.get('success');
+      if (err) {
+        setFeedbackMessage({ type: 'error', text: decodeURIComponent(err) });
+      } else if (success) {
+        setFeedbackMessage({
+          type: 'success',
+          text: 'Upwork MCP connected successfully via OAuth 2.1 (Read-Only)!',
+        });
+      }
+    }
   }, []);
 
   async function fetchStatus() {
