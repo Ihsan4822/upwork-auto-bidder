@@ -45,6 +45,9 @@ export default function RootLayout({
               <Link href="/portfolio" className="text-slate-600 hover:text-slate-900 transition-colors">
                 Portfolio
               </Link>
+              <Link href="/analytics" className="text-slate-600 hover:text-slate-900 transition-colors">
+                Analytics
+              </Link>
               <Link
                 href="/settings/connection"
                 className="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-md hover:bg-emerald-100 transition-colors"

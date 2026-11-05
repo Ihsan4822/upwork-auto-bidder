@@ -37,6 +37,7 @@ const REVIEW_QUEUE_PAGES = [
   '/',
   '/queue',
   '/portfolio',
+  '/analytics',
   '/settings/connection',
   '/jobs/filtered',
   '/jobs/scored',
