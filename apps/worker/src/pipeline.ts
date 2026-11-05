@@ -13,8 +13,11 @@ import {
   UpworkMcpClient,
   normalizeMcpJob,
   scoreJobWithAi,
+  draftProposalWithAi,
+  matchPortfolioItem,
   createAiProvider,
   type NormalizedJob,
+  type PortfolioItemInput,
 } from '@upwork-bidder/ai';
 import {
   HOURLY_RATE_FLOOR_USD,
@@ -31,6 +34,7 @@ export interface PipelineCycleSummary {
   scoredApply: number;
   scoredBoost: number;
   scoredSkip: number;
+  draftsGenerated: number;
 }
 
 /**
@@ -53,6 +57,7 @@ export async function executePipelineCycle(
     scoredApply: 0,
     scoredBoost: 0,
     scoredSkip: 0,
+    draftsGenerated: 0,
   };
 
   // ── Step 1: Poll Saved Searches ───────────────────────────────────────────
@@ -231,19 +236,68 @@ export async function executePipelineCycle(
           },
         });
 
-        // Set status based on score label
-        const nextStatus =
-          scoreOutput.label === 'SKIP' ? 'SKIPPED' : 'DRAFT_READY';
-
-        await prisma.job.update({
-          where: { id: job.id },
-          data: { status: nextStatus },
-        });
-
         summary.jobsScored++;
         if (scoreOutput.label === 'APPLY') summary.scoredApply++;
         else if (scoreOutput.label === 'APPLY_PLUS_BOOST') summary.scoredBoost++;
         else if (scoreOutput.label === 'SKIP') summary.scoredSkip++;
+
+        // If skipped, update job status
+        if (scoreOutput.label === 'SKIP') {
+          await prisma.job.update({
+            where: { id: job.id },
+            data: { status: 'SKIPPED' },
+          });
+          continue;
+        }
+
+        // ── Step 4: Draft Engine (Module 4) & Portfolio Match (Module 5) ──────
+        // For APPLY and APPLY_PLUS_BOOST only
+        try {
+          const dbPortfolio = await prisma.portfolioItem.findMany({
+            where: { profileId, isActive: true },
+          });
+
+          const portfolioItems: PortfolioItemInput[] = dbPortfolio.map((p) => ({
+            id: p.id,
+            title: p.title,
+            nicheTags: p.nicheTags,
+            link: p.link,
+            isActive: p.isActive,
+          }));
+
+          const matchResult = matchPortfolioItem(
+            `${job.title || ''} ${job.description || ''} ${job.skills.join(' ')}`,
+            portfolioItems,
+          );
+
+          const draftResult = await draftProposalWithAi(
+            normalized,
+            matchResult.matchedItem,
+            aiProvider,
+          );
+
+          await prisma.draft.create({
+            data: {
+              profileId,
+              jobId: job.id,
+              version: 1,
+              draftText: draftResult.draftText,
+              status: draftResult.status,
+              failureReason: draftResult.failureReason,
+              portfolioItemId: draftResult.portfolioItemId,
+              wordCount: draftResult.wordCount,
+            },
+          });
+
+          await prisma.job.update({
+            where: { id: job.id },
+            data: { status: 'DRAFT_READY' },
+          });
+
+          summary.draftsGenerated++;
+        } catch (draftErr) {
+          console.error(`[Pipeline] Failed to draft proposal for job ${job.upworkJobId}:`, draftErr);
+        }
       } catch (scoreErr) {
         console.error(`[Pipeline] Failed to score job ${job.upworkJobId}:`, scoreErr);
       }

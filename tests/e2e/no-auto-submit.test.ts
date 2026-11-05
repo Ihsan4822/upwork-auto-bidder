@@ -29,14 +29,17 @@ const BANNED_BUTTON_LABELS = [
   'send proposal',
   'submit proposal',
   'bid now',
-  'apply now', // "Apply" alone is fine in context — this is "apply now" (action)
+  'apply now',
 ];
 
-/** Pages in the review queue to check */
+/** Pages across the app to check */
 const REVIEW_QUEUE_PAGES = [
+  '/',
   '/queue',
-  '/queue/job', // Individual job review page
-  '/dashboard',
+  '/portfolio',
+  '/settings/connection',
+  '/jobs/filtered',
+  '/jobs/scored',
 ];
 
 /**
@@ -62,19 +65,12 @@ async function findBannedButtons(page: Page): Promise<string[]> {
 }
 
 test.describe('No Auto Submit — CRITICAL SAFETY TEST (D5)', () => {
-  test.beforeEach(async ({ page }) => {
-    // Log in with the seed user before checking pages
-    await page.goto('/');
-    // In test mode, use the magic link bypass (see RUNBOOK.md for test auth setup)
-  });
-
   for (const path of REVIEW_QUEUE_PAGES) {
     test(`No banned submit buttons on ${path}`, async ({ page }) => {
       await page.goto(path);
       const bannedButtons = await findBannedButtons(page);
 
       // If this assertion fails: remove the offending button immediately.
-      // A button that says "Submit to Upwork" or similar MUST NOT exist in this app.
       expect(bannedButtons).toEqual([]);
 
       if (bannedButtons.length > 0) {
@@ -82,20 +78,12 @@ test.describe('No Auto Submit — CRITICAL SAFETY TEST (D5)', () => {
         for (const btn of bannedButtons) {
           console.error(`   ${btn}`);
         }
-        console.error('See Section 2 and Module 6 of the brief. Remove these buttons.');
       }
     });
   }
 
-  test('"Mark as Submitted Manually" button exists and is distinct from auto-submit', async ({
-    page,
-  }) => {
+  test('"Mark as Submitted Manually" button is distinct from auto-submit', async ({ page }) => {
     await page.goto('/queue');
-    // This is the ONLY allowed submit-related button text
-    // It records a manual action, never calls any Upwork API
-    const allowedButton = page.getByText('Mark as Submitted Manually');
-    // We do not assert it exists (it only shows for APPROVED jobs)
-    // We assert the page does NOT have any banned labels alongside it
     const bannedButtons = await findBannedButtons(page);
     expect(bannedButtons).toEqual([]);
   });
