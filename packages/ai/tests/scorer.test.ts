@@ -66,7 +66,8 @@ describe('AI Scoring Engine — Module 3', () => {
   });
 
   it('handles JSON wrapped in markdown code blocks', async () => {
-    const wrappedJson = '```json\n{\n  "label": "APPLY",\n  "score": 78,\n  "reasons": ["Good fit", "Verified payment", "Budget above floor"]\n}\n```';
+    const wrappedJson =
+      '```json\n{\n  "label": "APPLY",\n  "score": 78,\n  "reasons": ["Good fit", "Verified payment", "Budget above floor"]\n}\n```';
 
     const provider = new MockAiProvider(wrappedJson);
     const result = await scoreJobWithAi(SAMPLE_JOB, provider, 'template');

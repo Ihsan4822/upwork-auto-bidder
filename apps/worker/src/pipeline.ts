@@ -302,9 +302,7 @@ export async function executePipelineCycle(
             select: { version: true },
           });
           const nextVersion =
-            existingDrafts.length > 0
-              ? Math.max(...existingDrafts.map((d) => d.version)) + 1
-              : 1;
+            existingDrafts.length > 0 ? Math.max(...existingDrafts.map((d) => d.version)) + 1 : 1;
 
           await prisma.draft.create({
             data: {
@@ -326,7 +324,10 @@ export async function executePipelineCycle(
 
           summary.draftsGenerated++;
         } catch (draftErr) {
-          console.error(`[Pipeline] Failed to draft proposal for job ${job.upworkJobId}:`, draftErr);
+          console.error(
+            `[Pipeline] Failed to draft proposal for job ${job.upworkJobId}:`,
+            draftErr,
+          );
         }
       } catch (scoreErr) {
         console.error(`[Pipeline] Failed to score job ${job.upworkJobId}:`, scoreErr);

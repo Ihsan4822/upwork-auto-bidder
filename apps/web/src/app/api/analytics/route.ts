@@ -1,15 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 import { calculateAnalyticsSummary } from '@upwork-bidder/core';
+import { requireSession } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
   try {
     const totalJobs = await prisma.job.count();
     const filteredOutCount = await prisma.job.count({ where: { status: 'FILTERED_OUT' } });
     const scoredCount = await prisma.jobScore.count();
     const draftedCount = await prisma.draft.count();
     const approvedCount = await prisma.job.count({ where: { status: 'APPROVED' } });
-    const submittedManuallyCount = await prisma.job.count({ where: { status: 'SUBMITTED_MANUALLY' } });
+    const submittedManuallyCount = await prisma.job.count({
+      where: { status: 'SUBMITTED_MANUALLY' },
+    });
 
     const entries = await prisma.analyticsEntry.findMany({
       select: {

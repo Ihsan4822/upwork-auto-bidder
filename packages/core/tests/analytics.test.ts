@@ -9,10 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  calculateAnalyticsSummary,
-  type AnalyticsSummaryInput,
-} from '../src/analytics-service';
+import { calculateAnalyticsSummary, type AnalyticsSummaryInput } from '../src/analytics-service';
 
 describe('Analytics Service — Module 7', () => {
   it('returns "Not Tracked" when no manual view/reply entries exist (honest nulls)', () => {

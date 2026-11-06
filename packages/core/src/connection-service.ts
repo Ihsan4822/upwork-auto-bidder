@@ -10,10 +10,7 @@
  */
 
 import { encryptToken } from './crypto';
-import {
-  validateGrantedScopes,
-  type ScopeValidationResult,
-} from './oauth';
+import { validateGrantedScopes, type ScopeValidationResult } from './oauth';
 
 export interface OAuthCallbackPayload {
   profileId: string;

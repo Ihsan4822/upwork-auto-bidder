@@ -60,10 +60,22 @@ export async function scoreJobWithAi(
     .replace('{{BUDGET_TYPE}}', job.budgetType || 'Not Available')
     .replace('{{JOB_BUDGET}}', budgetDisplay)
     .replace('{{CLIENT_COUNTRY}}', job.clientCountry || 'Not Available')
-    .replace('{{CLIENT_TOTAL_SPEND}}', job.clientTotalSpend !== null ? `$${job.clientTotalSpend}` : 'Not Available')
-    .replace('{{CLIENT_HIRE_RATE}}', job.clientHireRate !== null ? `${(job.clientHireRate * 100).toFixed(0)}%` : 'Not Available')
-    .replace('{{PAYMENT_VERIFIED}}', job.paymentVerified !== null ? (job.paymentVerified ? 'Yes' : 'No') : 'Not Available')
-    .replace('{{PROPOSAL_COUNT}}', job.proposalCount !== null ? String(job.proposalCount) : 'Not Available')
+    .replace(
+      '{{CLIENT_TOTAL_SPEND}}',
+      job.clientTotalSpend !== null ? `$${job.clientTotalSpend}` : 'Not Available',
+    )
+    .replace(
+      '{{CLIENT_HIRE_RATE}}',
+      job.clientHireRate !== null ? `${(job.clientHireRate * 100).toFixed(0)}%` : 'Not Available',
+    )
+    .replace(
+      '{{PAYMENT_VERIFIED}}',
+      job.paymentVerified !== null ? (job.paymentVerified ? 'Yes' : 'No') : 'Not Available',
+    )
+    .replace(
+      '{{PROPOSAL_COUNT}}',
+      job.proposalCount !== null ? String(job.proposalCount) : 'Not Available',
+    )
     .replace('{{HOURS_SINCE_POSTED}}', hoursSincePosted);
 
   // Call AI Provider
@@ -72,7 +84,10 @@ export async function scoreJobWithAi(
   // Parse and validate with Zod schema (extract JSON cleanly even if wrapped in markdown blocks)
   let cleanJson = rawResponse.trim();
   if (cleanJson.startsWith('```json')) {
-    cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
+    cleanJson = cleanJson
+      .replace(/^```json/, '')
+      .replace(/```$/, '')
+      .trim();
   } else if (cleanJson.startsWith('```')) {
     cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
   }

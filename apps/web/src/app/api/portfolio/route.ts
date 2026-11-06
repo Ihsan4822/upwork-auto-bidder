@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
+import { requireSession } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
   try {
     const items = await prisma.portfolioItem.findMany({
       orderBy: { createdAt: 'desc' },
@@ -16,6 +22,13 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
+  const { user } = sessionResult;
+
   try {
     const body = await request.json();
     const { title, nicheTags, link } = body;
@@ -24,9 +37,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title and link are required' }, { status: 400 });
     }
 
-    const profile = await prisma.profile.findFirst();
+    let profile = await prisma.profile.findFirst({
+      where: { userId: user.id },
+    });
+
     if (!profile) {
-      return NextResponse.json({ error: 'No profile registered' }, { status: 400 });
+      profile = await prisma.profile.create({
+        data: {
+          userId: user.id,
+          upworkProfileId: `profile_${user.id}`,
+          displayName: user.email.split('@')[0],
+          niches: [
+            'Amazon Listing Images',
+            'A+ Content / EBC',
+            'Storefront Design',
+            'Brand Story Design',
+            'Packaging & Box Design',
+          ],
+          connectionStatus: 'DISCONNECTED',
+        },
+      });
     }
 
     const item = await prisma.portfolioItem.create({

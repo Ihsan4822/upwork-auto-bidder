@@ -83,7 +83,8 @@ export default function PortfolioPage() {
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Portfolio Library (Module 5)</h2>
         <p className="text-sm text-slate-600 mt-1">
-          Registered portfolio samples for Farid Malik. The AI matcher references these samples in drafted proposals.
+          Registered portfolio samples for Farid Malik. The AI matcher references these samples in
+          drafted proposals.
         </p>
       </div>
 
@@ -97,7 +98,8 @@ export default function PortfolioPage() {
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
         <h3 className="text-base font-semibold text-slate-900">Add Real Portfolio Sample</h3>
         <p className="text-xs text-slate-500">
-          Section 4, Module 5: Enter only genuine portfolio links. The app never invents samples or metrics.
+          Section 4, Module 5: Enter only genuine portfolio links. The app never invents samples or
+          metrics.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -114,7 +116,9 @@ export default function PortfolioPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Portfolio Link (URL)</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Portfolio Link (URL)
+            </label>
             <input
               type="url"
               value={link}
@@ -163,12 +167,16 @@ export default function PortfolioPage() {
 
       {/* List Existing Items */}
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
-        <h3 className="text-base font-semibold text-slate-900">Current Portfolio Samples ({items.length})</h3>
+        <h3 className="text-base font-semibold text-slate-900">
+          Current Portfolio Samples ({items.length})
+        </h3>
 
         {loading ? (
           <p className="text-xs text-slate-500">Loading samples...</p>
         ) : items.length === 0 ? (
-          <p className="text-xs text-slate-500">No samples registered yet. Add your first sample above.</p>
+          <p className="text-xs text-slate-500">
+            No samples registered yet. Add your first sample above.
+          </p>
         ) : (
           <div className="divide-y divide-slate-100">
             {items.map((item) => (
@@ -185,7 +193,10 @@ export default function PortfolioPage() {
                   </a>
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {item.nicheTags.map((tag, i) => (
-                      <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                      <span
+                        key={i}
+                        className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
+                      >
                         {tag}
                       </span>
                     ))}

@@ -10,3 +10,4 @@ coverage/
 !packages/db/prisma/migrations/**/*.sql
 backup-*.sql
 .turbo/
+*.tsbuildinfo

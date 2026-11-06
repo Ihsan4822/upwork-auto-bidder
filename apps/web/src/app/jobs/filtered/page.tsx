@@ -50,9 +50,13 @@ export default function FilteredJobsPage() {
       {/* Audit Banner */}
       <div className="bg-slate-100 border border-slate-300 rounded-lg p-4 text-xs text-slate-700 flex items-center justify-between">
         <div>
-          <strong>Active Filter Floors:</strong> Hourly Floor: $15/hr · Fixed Floor: $100 · Payment Verified: Required · Niches: Amazon Design Only
+          <strong>Active Filter Floors:</strong> Hourly Floor: $15/hr · Fixed Floor: $100 · Payment
+          Verified: Required · Niches: Amazon Design Only
         </div>
-        <Link href="/settings/connection" className="text-emerald-700 font-semibold hover:underline">
+        <Link
+          href="/settings/connection"
+          className="text-emerald-700 font-semibold hover:underline"
+        >
           View Settings →
         </Link>
       </div>
@@ -68,7 +72,10 @@ export default function FilteredJobsPage() {
       ) : (
         <div className="space-y-4">
           {jobs.map((job) => (
-            <div key={job.id} className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+            <div
+              key={job.id}
+              className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3"
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-base font-semibold text-slate-900 leading-snug">
@@ -86,12 +93,17 @@ export default function FilteredJobsPage() {
                           ? `$${job.budgetAmountFixed}`
                           : 'Not Available'
                         : job.budgetType === 'HOURLY'
-                        ? `$${job.hourlyRateMin ?? '?'}-$${job.hourlyRateMax ?? '?'}/hr`
-                        : 'Not Available'}
+                          ? `$${job.hourlyRateMin ?? '?'}-$${job.hourlyRateMax ?? '?'}/hr`
+                          : 'Not Available'}
                     </span>
                     <span>•</span>
                     <span>
-                      Payment: {job.paymentVerified === true ? 'Verified' : job.paymentVerified === false ? 'Unverified' : 'Not Available'}
+                      Payment:{' '}
+                      {job.paymentVerified === true
+                        ? 'Verified'
+                        : job.paymentVerified === false
+                          ? 'Unverified'
+                          : 'Not Available'}
                     </span>
                   </div>
                 </div>

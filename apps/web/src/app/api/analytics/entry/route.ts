@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 import { z } from 'zod';
+import { requireSession } from '@/lib/auth';
 
 const AnalyticsEntrySchema = z.object({
   jobId: z.string().min(1),
@@ -12,6 +13,11 @@ const AnalyticsEntrySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
   try {
     let rawBody;
     try {
@@ -28,7 +34,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { jobId, connectsSpent, clientViewed, clientReplied, isSubmitted, notes } = parseResult.data;
+    const { jobId, connectsSpent, clientViewed, clientReplied, isSubmitted, notes } =
+      parseResult.data;
 
     const job = await prisma.job.findUnique({
       where: { id: jobId },

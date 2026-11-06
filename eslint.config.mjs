@@ -2,17 +2,22 @@ import js from '@eslint/js';
 import tsPlugin from 'typescript-eslint';
 
 export default [
-  js.configs.recommended,
-  ...tsPlugin.configs.recommended,
   {
     ignores: [
       '**/node_modules/**',
       '**/.next/**',
+      '.next/**',
       '**/dist/**',
       '**/*.d.ts',
+      '**/next-env.d.ts',
       '**/coverage/**',
-      'apps/web/**',
+      '**/*.config.js',
+      '**/*.config.mjs',
     ],
+  },
+  js.configs.recommended,
+  ...tsPlugin.configs.recommended,
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'error',

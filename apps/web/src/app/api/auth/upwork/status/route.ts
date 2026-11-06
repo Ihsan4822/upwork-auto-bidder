@@ -1,22 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
+import { requireSession } from '@/lib/auth';
 
-export async function GET() {
-  const registeredAppName =
-    process.env.UPWORK_REGISTERED_APP_NAME ||
-    (process.env.UPWORK_CLIENT_ID ? 'Upwork Proposal Assistant (Farid Malik)' : 'Not Registered (Pending Upwork Developer Key)');
+export async function GET(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
+  const { user } = sessionResult;
 
   const fallback = {
     status: 'DISCONNECTED',
-    displayName: 'Farid Malik',
-    registeredAppName,
+    displayName: user.email.split('@')[0],
     scopesGranted: [],
-    isAppConfigured: Boolean(process.env.UPWORK_CLIENT_ID),
+    mcpServerUrl: process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp',
   };
 
   try {
     // 1.5s fail-fast timeout so the UI never hangs if PostgreSQL is offline
     const queryPromise = prisma.profile.findFirst({
+      where: { userId: user.id },
       include: {
         oauthTokens: {
           where: { revokedAt: null },
@@ -37,6 +41,10 @@ export async function GET() {
     }
 
     const activeToken = profile.oauthTokens[0];
+    const needsReconnect = profile.connectionStatus === 'DISCONNECTED' && activeToken;
+
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
 
     return NextResponse.json({
       profileId: profile.id,
@@ -44,8 +52,12 @@ export async function GET() {
       status: activeToken ? profile.connectionStatus : 'DISCONNECTED',
       lastConnectedAt: profile.lastConnectedAt,
       scopesGranted: activeToken?.scopesGranted ?? [],
-      registeredAppName,
-      isAppConfigured: Boolean(process.env.UPWORK_CLIENT_ID),
+      mcpServerUrl: process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp',
+      clientId,
+      needsReconnect: Boolean(needsReconnect),
+      reconnectReason: needsReconnect
+        ? 'Token refresh failed. Click Reconnect Upwork to re-authorise.'
+        : undefined,
     });
   } catch {
     // Return safe disconnected state immediately on any error or timeout

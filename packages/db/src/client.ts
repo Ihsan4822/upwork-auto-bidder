@@ -27,8 +27,7 @@ function createPrismaClient(): PrismaClient {
 
 // In production: always create a new instance (single long-lived process)
 // In development: reuse the global instance across hot reloads
-export const prisma: PrismaClient =
-  globalThis.__prisma ?? createPrismaClient();
+export const prisma: PrismaClient = globalThis.__prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
   globalThis.__prisma = prisma;
