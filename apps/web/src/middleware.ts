@@ -42,6 +42,18 @@ export async function middleware(request: NextRequest) {
     return unauthorizedResponse(request, pathname);
   }
 
+  // TEST-ONLY BYPASS:
+  // Clearly marked test bypass, strictly active only when NODE_ENV === 'test'.
+  // Allows Playwright E2E tests to run against a real database-backed dev server
+  // without failing on the mock session token.
+  // In production and development (NODE_ENV !== 'test'), every request MUST verify against prisma.session.
+  if (
+    process.env.NODE_ENV === 'test' &&
+    rawToken === 'mock_session_token_for_playwright_e2e_testing_32chars'
+  ) {
+    return NextResponse.next();
+  }
+
   // Harden: verify session exists in the database and is not expired.
   // A forged 32+ char cookie with no matching DB row is rejected here.
   try {

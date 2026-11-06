@@ -11,6 +11,17 @@
 
 import { test, expect } from '@playwright/test';
 
+/**
+ * TEST AUTHENTICATION (QA Finding 1 - Option b):
+ * Playwright E2E tests authenticate by setting the app_session cookie to
+ * 'mock_session_token_for_playwright_e2e_testing_32chars'.
+ * When running under NODE_ENV === 'test', Next.js middleware activates a clearly
+ * marked test bypass that accepts this token without requiring an active database
+ * session row in prisma.session. In production and development (NODE_ENV !== 'test'),
+ * the bypass is strictly inactive and every session must exist in the database.
+ */
+
+
 // Seeded fixture data for E2E tests
 const fixtureJobs = [
   {
