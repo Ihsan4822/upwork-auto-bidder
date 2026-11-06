@@ -69,13 +69,18 @@ export function applyHardFilters(job: JobFilterInput, floors: FilterFloors): Fil
   }
 
   // Filter 3: Budget type must be known to apply the right floor
-  if (!job.budgetType) {
+  if (!job.budgetType || (job.budgetType !== 'HOURLY' && job.budgetType !== 'FIXED')) {
     return { passed: false, reason: 'Missing Budget Information' };
   }
 
-  // Filter 4: Hourly jobs — reject if client max is below the floor
+  // Filter 4: Hourly jobs — reject if client max is missing, NaN, non-finite, or below the floor
   if (job.budgetType === 'HOURLY') {
-    if (job.hourlyRateMax === null) {
+    if (
+      job.hourlyRateMax === null ||
+      typeof job.hourlyRateMax !== 'number' ||
+      !Number.isFinite(job.hourlyRateMax) ||
+      Number.isNaN(job.hourlyRateMax)
+    ) {
       return { passed: false, reason: 'Missing Budget Information' };
     }
     if (job.hourlyRateMax < floors.hourlyRateFloorUsd) {
@@ -83,9 +88,14 @@ export function applyHardFilters(job: JobFilterInput, floors: FilterFloors): Fil
     }
   }
 
-  // Filter 5: Fixed price jobs — reject if budget is below the floor
+  // Filter 5: Fixed price jobs — reject if budget is missing, NaN, non-finite, or below the floor
   if (job.budgetType === 'FIXED') {
-    if (job.budgetAmountFixed === null) {
+    if (
+      job.budgetAmountFixed === null ||
+      typeof job.budgetAmountFixed !== 'number' ||
+      !Number.isFinite(job.budgetAmountFixed) ||
+      Number.isNaN(job.budgetAmountFixed)
+    ) {
       return { passed: false, reason: 'Missing Budget Information' };
     }
     if (job.budgetAmountFixed < floors.fixedPriceFloorUsd) {

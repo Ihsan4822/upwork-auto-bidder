@@ -97,8 +97,8 @@ describe('Proposal Drafting & Formula Validation — Module 4', () => {
   });
 
   it('calculates word count accurately', () => {
-    const words = countWords('This is a test of five words.');
-    expect(words).toBe(7);
+    const words = countWords('This sentence has five words.');
+    expect(words).toBe(5);
     const count = countWords(VALID_FORMULA_PROPOSAL);
     expect(count).toBeGreaterThan(100);
     expect(count).toBeLessThan(250);

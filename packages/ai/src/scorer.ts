@@ -12,8 +12,7 @@
  * 6. Validates output with Zod schema (C6).
  */
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { loadPrompt } from './prompt-loader';
 import { AiProvider } from './provider';
 import { parseScoreOutput, type JobScoreOutput } from './schemas/ai-output-schemas';
 import { NormalizedJob } from './job-mapper';
@@ -34,8 +33,7 @@ export async function scoreJobWithAi(
   let promptTemplate = customPromptTemplate;
 
   if (!promptTemplate) {
-    const promptPath = resolve(__dirname, './prompts/score-job.txt');
-    promptTemplate = readFileSync(promptPath, 'utf8');
+    promptTemplate = loadPrompt('score-job.txt');
   }
 
   // Calculate hours since posted

@@ -159,8 +159,14 @@ export async function executePipelineCycle(
       title: job.title,
       description: job.description,
       budgetType: job.budgetType,
-      budgetAmountFixed: job.budgetAmountFixed ? Number(job.budgetAmountFixed) : null,
-      hourlyRateMax: job.hourlyRateMax ? Number(job.hourlyRateMax) : null,
+      budgetAmountFixed:
+        job.budgetAmountFixed !== null && job.budgetAmountFixed !== undefined
+          ? Number(job.budgetAmountFixed)
+          : null,
+      hourlyRateMax:
+        job.hourlyRateMax !== null && job.hourlyRateMax !== undefined
+          ? Number(job.hourlyRateMax)
+          : null,
       paymentVerified: job.paymentVerified,
     };
 
@@ -208,12 +214,27 @@ export async function executePipelineCycle(
           title: job.title,
           description: job.description,
           budgetType: job.budgetType as 'HOURLY' | 'FIXED' | null,
-          budgetAmountFixed: job.budgetAmountFixed ? Number(job.budgetAmountFixed) : null,
-          hourlyRateMin: job.hourlyRateMin ? Number(job.hourlyRateMin) : null,
-          hourlyRateMax: job.hourlyRateMax ? Number(job.hourlyRateMax) : null,
+          budgetAmountFixed:
+            job.budgetAmountFixed !== null && job.budgetAmountFixed !== undefined
+              ? Number(job.budgetAmountFixed)
+              : null,
+          hourlyRateMin:
+            job.hourlyRateMin !== null && job.hourlyRateMin !== undefined
+              ? Number(job.hourlyRateMin)
+              : null,
+          hourlyRateMax:
+            job.hourlyRateMax !== null && job.hourlyRateMax !== undefined
+              ? Number(job.hourlyRateMax)
+              : null,
           clientCountry: job.clientCountry,
-          clientTotalSpend: job.clientTotalSpend ? Number(job.clientTotalSpend) : null,
-          clientHireRate: job.clientHireRate ? Number(job.clientHireRate) : null,
+          clientTotalSpend:
+            job.clientTotalSpend !== null && job.clientTotalSpend !== undefined
+              ? Number(job.clientTotalSpend)
+              : null,
+          clientHireRate:
+            job.clientHireRate !== null && job.clientHireRate !== undefined
+              ? Number(job.clientHireRate)
+              : null,
           paymentVerified: job.paymentVerified,
           proposalCount: job.proposalCount,
           postedAt: job.postedAt,
@@ -276,11 +297,20 @@ export async function executePipelineCycle(
             aiProvider,
           );
 
+          const existingDrafts = await prisma.draft.findMany({
+            where: { jobId: job.id },
+            select: { version: true },
+          });
+          const nextVersion =
+            existingDrafts.length > 0
+              ? Math.max(...existingDrafts.map((d) => d.version)) + 1
+              : 1;
+
           await prisma.draft.create({
             data: {
               profileId,
               jobId: job.id,
-              version: 1,
+              version: nextVersion,
               draftText: draftResult.draftText,
               status: draftResult.status,
               failureReason: draftResult.failureReason,

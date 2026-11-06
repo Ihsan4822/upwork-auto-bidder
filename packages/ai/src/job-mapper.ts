@@ -76,6 +76,6 @@ export function normalizeMcpJob(raw: RawMcpJob): NormalizedJob {
     proposalCount: typeof raw.proposal_count === 'number' ? Math.max(0, raw.proposal_count) : null,
     postedAt,
     skills: Array.isArray(raw.skills) ? raw.skills.filter((s): s is string => typeof s === 'string') : [],
-    jobUrl: raw.url?.trim() || `https://www.upwork.com/jobs/~${raw.id}`,
+    jobUrl: raw.url?.trim() || null,
   };
 }

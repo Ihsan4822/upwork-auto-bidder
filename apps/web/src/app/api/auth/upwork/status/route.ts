@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 
 export async function GET() {
+  const registeredAppName =
+    process.env.UPWORK_REGISTERED_APP_NAME ||
+    (process.env.UPWORK_CLIENT_ID ? 'Upwork Proposal Assistant (Farid Malik)' : 'Not Registered (Pending Upwork Developer Key)');
+
   const fallback = {
     status: 'DISCONNECTED',
     displayName: 'Farid Malik',
-    registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
+    registeredAppName,
     scopesGranted: [],
+    isAppConfigured: Boolean(process.env.UPWORK_CLIENT_ID),
   };
 
   try {
@@ -39,7 +44,8 @@ export async function GET() {
       status: activeToken ? profile.connectionStatus : 'DISCONNECTED',
       lastConnectedAt: profile.lastConnectedAt,
       scopesGranted: activeToken?.scopesGranted ?? [],
-      registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
+      registeredAppName,
+      isAppConfigured: Boolean(process.env.UPWORK_CLIENT_ID),
     });
   } catch {
     // Return safe disconnected state immediately on any error or timeout

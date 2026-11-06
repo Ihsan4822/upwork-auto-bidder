@@ -57,6 +57,12 @@ describe('OAuth Scope Validation (Section 3)', () => {
     expect(result.unexpectedScopes).toContain('some_new_read_scope');
   });
 
+  it('fails if scope list is empty (no permissions granted)', () => {
+    const result = validateGrantedScopes([]);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('No scopes granted');
+  });
+
   it('generates secure unique state tokens for CSRF', () => {
     const state1 = generateOAuthState();
     const state2 = generateOAuthState();

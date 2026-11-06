@@ -14,7 +14,7 @@ supports OAuth 2.1 with no API key registration required. It is the official, pe
 **Rejected:** Upwork Developer REST API (requires app registration, client ID, client secret).
 
 **Risk noted:** The MCP server exposes tools beyond read-only job search (proposal submission,
-messaging, contracts). The MCP adapter in `packages/ai/src/mcp-adapter.ts` enforces an
+messaging, contracts). The MCP adapter in `packages/ai/src/mcp-client.ts` enforces an
 allowlist. The scope guard test fails the build if any banned tool appears in config.
 See `docs/OPEN-ITEMS.md` — MCP-TOOLS-SCOPE.
 

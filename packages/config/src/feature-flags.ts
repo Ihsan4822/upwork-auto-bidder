@@ -17,10 +17,10 @@ export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLA
 
 /**
  * Default flag values used when the DB setting is missing.
- * These are the safe defaults — most features on for the MVP.
+ * Rule: Default off per Section 11.
  */
 export const FEATURE_FLAG_DEFAULTS: Record<FeatureFlagKey, boolean> = {
-  enableAiScoring: true,
-  enableDraftEngine: true,
-  enableAnalytics: true,
+  enableAiScoring: false,
+  enableDraftEngine: false,
+  enableAnalytics: false,
 };

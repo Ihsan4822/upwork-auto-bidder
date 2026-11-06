@@ -1,14 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
-import { getNextDraftVersion, countWords } from '@upwork-bidder/core';
+import { getNextDraftVersion, countWords, isValidTransition, QueueState } from '@upwork-bidder/core';
+import { z } from 'zod';
+
+const ActionSchema = z.object({
+  action: z.enum(['SAVE_DRAFT_VERSION', 'APPROVE', 'SKIP', 'MARK_SUBMITTED']),
+  draftText: z.string().optional(),
+  portfolioItemId: z.string().nullable().optional(),
+  note: z.string().optional(),
+});
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
   const { jobId } = await params;
-  const body = await request.json();
-  const { action, draftText, portfolioItemId, note } = body;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
+  }
+
+  const parseResult = ActionSchema.safeParse(body);
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: 'Invalid request payload', details: parseResult.error.flatten().fieldErrors },
+      { status: 400 },
+    );
+  }
+
+  const { action, draftText, portfolioItemId, note } = parseResult.data;
 
   try {
     const job = await prisma.job.findUnique({
@@ -24,9 +47,19 @@ export async function POST(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
+    const currentStatus = job.status as QueueState;
+
     if (action === 'SAVE_DRAFT_VERSION') {
-      if (!draftText || typeof draftText !== 'string') {
+      if (!draftText || typeof draftText !== 'string' || !draftText.trim()) {
         return NextResponse.json({ error: 'Draft text is required' }, { status: 400 });
+      }
+
+      // Check transition if status is changing to IN_REVIEW
+      if (currentStatus !== 'IN_REVIEW' && !isValidTransition(currentStatus, 'IN_REVIEW')) {
+        return NextResponse.json(
+          { error: `Illegal state transition from ${currentStatus} to IN_REVIEW` },
+          { status: 400 },
+        );
       }
 
       // SECTION 4, MODULE 4 RULE: "Editing a draft creates a new version, it never overwrites the old one"
@@ -66,6 +99,13 @@ export async function POST(
     }
 
     if (action === 'APPROVE') {
+      if (!isValidTransition(currentStatus, 'APPROVED')) {
+        return NextResponse.json(
+          { error: `Illegal state transition from ${currentStatus} to APPROVED` },
+          { status: 400 },
+        );
+      }
+
       await prisma.job.update({
         where: { id: job.id },
         data: { status: 'APPROVED' },
@@ -85,6 +125,13 @@ export async function POST(
     }
 
     if (action === 'SKIP') {
+      if (!isValidTransition(currentStatus, 'SKIPPED')) {
+        return NextResponse.json(
+          { error: `Illegal state transition from ${currentStatus} to SKIPPED` },
+          { status: 400 },
+        );
+      }
+
       await prisma.job.update({
         where: { id: job.id },
         data: { status: 'SKIPPED' },
@@ -104,9 +151,13 @@ export async function POST(
     }
 
     if (action === 'MARK_SUBMITTED') {
-      // SECTION 2, RULE 8 & SECTION 4, MODULE 6:
-      // Farid copies the approved draft, goes to Upwork himself, submits manually.
-      // App then lets him mark it as submitted, with the time, for analytics only.
+      if (!isValidTransition(currentStatus, 'SUBMITTED_MANUALLY')) {
+        return NextResponse.json(
+          { error: `Illegal state transition from ${currentStatus} to SUBMITTED_MANUALLY. Job must be APPROVED first.` },
+          { status: 400 },
+        );
+      }
+
       await prisma.job.update({
         where: { id: job.id },
         data: { status: 'SUBMITTED_MANUALLY' },

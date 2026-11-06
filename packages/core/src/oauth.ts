@@ -34,6 +34,7 @@ export interface ScopeValidationResult {
   valid: boolean;
   unexpectedScopes: string[];
   bannedScopes: string[];
+  reason?: string;
 }
 
 /**
@@ -64,12 +65,21 @@ export function validateGrantedScopes(grantedScopes: string[]): ScopeValidationR
     }
   }
 
-  const valid = bannedScopes.length === 0 && unexpectedScopes.length === 0;
+  // Empty scope list is invalid — grants zero required access
+  const valid = grantedScopes.length > 0 && bannedScopes.length === 0 && unexpectedScopes.length === 0;
+  const reason = grantedScopes.length === 0
+    ? 'No scopes granted by provider'
+    : bannedScopes.length > 0
+    ? `Banned scopes requested: ${bannedScopes.join(', ')}`
+    : unexpectedScopes.length > 0
+    ? `Unexpected scopes requested: ${unexpectedScopes.join(', ')}`
+    : undefined;
 
   return {
     valid,
     unexpectedScopes,
     bannedScopes,
+    reason,
   };
 }
 

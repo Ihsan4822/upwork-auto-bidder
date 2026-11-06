@@ -27,7 +27,7 @@ export async function POST() {
     await prisma.reviewAction.create({
       data: {
         profileId: profile.id,
-        jobId: 'SYSTEM',
+        jobId: null,
         action: 'DISCONNECTED_UPWORK',
         actorId: profile.userId,
         note: 'OAuth token deleted and Upwork connection terminated by user action.',

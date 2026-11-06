@@ -17,8 +17,7 @@
  * 5. Every edit creates a new version, never overwriting older rows.
  */
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { loadPrompt } from './prompt-loader';
 import { AiProvider } from './provider';
 import { parseDraftOutput } from './schemas/ai-output-schemas';
 import type { NormalizedJob } from './job-mapper';
@@ -95,8 +94,7 @@ export async function draftProposalWithAi(
 ): Promise<DraftProposalResult> {
   let promptTemplate = customTemplate;
   if (!promptTemplate) {
-    const promptPath = resolve(__dirname, './prompts/draft-proposal.txt');
-    promptTemplate = readFileSync(promptPath, 'utf8');
+    promptTemplate = loadPrompt('draft-proposal.txt');
   }
 
   // Budget display
@@ -107,8 +105,9 @@ export async function draftProposalWithAi(
     budgetDisplay = `$${job.hourlyRateMin ?? '?'}-$${job.hourlyRateMax ?? '?'}/hr`;
   }
 
-  const portfolioTitle = portfolioItem ? portfolioItem.title : 'Amazon Listing & A+ Design Samples';
-  const portfolioLink = portfolioItem ? portfolioItem.link : 'Available upon request';
+  // Honest portfolio sample display — never invent samples or links if none matched
+  const portfolioTitle = portfolioItem ? portfolioItem.title : 'Not Available';
+  const portfolioLink = portfolioItem ? portfolioItem.link : 'Not Available';
 
   // Fill prompt
   const filledPrompt = promptTemplate

@@ -63,7 +63,7 @@ describe('Job Mapper — Module 1 Honest Nulls', () => {
     expect(normalized.proposalCount).toBeNull();
     expect(normalized.postedAt).toBeNull();
     expect(normalized.skills).toEqual([]);
-    expect(normalized.jobUrl).toBe('https://www.upwork.com/jobs/~job_sparse_456');
+    expect(normalized.jobUrl).toBeNull();
   });
 
   it('infers HOURLY budget type when hourly rates are supplied without explicit type', () => {

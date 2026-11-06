@@ -65,7 +65,7 @@ packages/ui ────────────────────► (com
    BullMQ timer fires → enqueues "poll-upwork" job
 
 2. POLL (apps/worker → packages/ai → Upwork MCP)
-   packages/ai/src/mcp-adapter.ts calls ONLY allowed MCP tools
+   packages/ai/src/mcp-client.ts calls ONLY allowed MCP tools
    (search_jobs, get_job_details)
    New jobs stored in DB via packages/db — deduplicated by upwork_job_id
 
@@ -102,7 +102,7 @@ packages/ui ────────────────────► (com
 
 ## Adapters (All External Calls Sit Behind These)
 
-### Upwork MCP Adapter (`packages/ai/src/mcp-adapter.ts`)
+### Upwork MCP Adapter (`packages/ai/src/mcp-client.ts`)
 - Connects to `https://mcp.upwork.com/mcp` via HTTP MCP transport
 - Uses OAuth 2.1 token from `oauth_tokens` table (encrypted, server-side only)
 - **Allowlist enforced:** only calls tools in `mcp-allowlist.ts`

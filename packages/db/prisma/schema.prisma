@@ -225,7 +225,7 @@ model PortfolioItem {
 model ReviewAction {
   id        String   @id @default(cuid())
   profileId String   @map("profile_id")
-  jobId     String   @map("job_id")
+  jobId     String?  @map("job_id")
   // Action values: APPROVED | SKIPPED | EDITED_DRAFT | MARKED_SUBMITTED |
   //                CHANGED_PORTFOLIO | ADDED_NOTE | CHANGED_LABEL
   action    String
@@ -236,7 +236,7 @@ model ReviewAction {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  job       Job     @relation(fields: [jobId], references: [id])
+  job       Job?    @relation(fields: [jobId], references: [id])
   profile   Profile @relation(fields: [profileId], references: [id])
 
   @@index([jobId])

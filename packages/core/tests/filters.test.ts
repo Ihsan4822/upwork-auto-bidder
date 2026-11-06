@@ -177,6 +177,53 @@ describe('Hard Filters — Module 2', () => {
     });
   });
 
+  describe('Edge cases and boundary conditions', () => {
+    it('rejects a job with hourlyRateMax at $14.99 (just below $15.00 floor)', () => {
+      const job: JobFilterInput = { ...PASSING_HOURLY_JOB, hourlyRateMax: 14.99 };
+      const result = applyHardFilters(job, DEFAULT_FLOORS);
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Below Fee Floor');
+      }
+    });
+
+    it('rejects a job with fixed budget at $99.99 (just below $100 floor)', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, budgetAmountFixed: 99.99 };
+      const result = applyHardFilters(job, DEFAULT_FLOORS);
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Budget Too Low');
+      }
+    });
+
+    it('rejects a job with NaN hourlyRateMax', () => {
+      const job: JobFilterInput = { ...PASSING_HOURLY_JOB, hourlyRateMax: NaN };
+      const result = applyHardFilters(job, DEFAULT_FLOORS);
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Missing Budget Information');
+      }
+    });
+
+    it('rejects a job with NaN budgetAmountFixed', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, budgetAmountFixed: NaN };
+      const result = applyHardFilters(job, DEFAULT_FLOORS);
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Missing Budget Information');
+      }
+    });
+
+    it('rejects a job with an unknown budgetType (e.g. WEEKLY)', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, budgetType: 'WEEKLY' };
+      const result = applyHardFilters(job, DEFAULT_FLOORS);
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Missing Budget Information');
+      }
+    });
+  });
+
   describe('Missing budget type', () => {
     it('rejects a job with null budgetType', () => {
       const job: JobFilterInput = { ...PASSING_FIXED_JOB, budgetType: null };
