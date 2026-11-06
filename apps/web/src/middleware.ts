@@ -9,7 +9,12 @@ import { hashToken } from '@upwork-bidder/core';
  * - /api/auth/login/request (Request magic link)
  * - /api/auth/login/verify (Verify magic link)
  */
-const PUBLIC_PATHS = ['/login', '/api/auth/login/request', '/api/auth/login/verify'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth/login/request',
+  '/api/auth/login/verify',
+  '/api/auth/upwork/client-metadata.json',
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

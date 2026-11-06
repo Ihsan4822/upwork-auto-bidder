@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
     const redirectUri = `${appUrl}/api/auth/upwork/callback`;
 
     // Official authorization endpoint from MCP discovery metadata.
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     const authorizationUrl =
       `${authEndpoint}?response_type=code` +
+      `&client_id=${encodeURIComponent(clientId)}` +
       `&scope=${scopesParam}` +
       `&state=${state}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -54,6 +56,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       authorizationUrl,
       state,
+      clientId,
       allowedScopes: ALLOWED_OAUTH_SCOPES,
     });
 

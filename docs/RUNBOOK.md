@@ -22,7 +22,7 @@ pnpm install
 # 2. Configure environment
 cp .env.example .env
 # Fill in DATABASE_URL, REDIS_URL, AI_API_KEY, OAUTH_TOKEN_ENCRYPTION_KEY,
-# UPWORK_CLIENT_ID, UPWORK_CLIENT_SECRET, SESSION_SECRET
+# and SESSION_SECRET (no Upwork client ID/secret required - MCP uses OAuth 2.1 PKCE)
 
 # 3. Generate Prisma client & apply migrations
 pnpm db:generate
@@ -48,8 +48,6 @@ Every variable is listed in `.env.example`. Fill in `.env` only. Never commit `.
 | `AI_API_KEY`                 | Google Gemini API key                                                                               |
 | `AI_MODEL_NAME`              | Model name (default: `gemini-1.5-pro`)                                                              |
 | `SESSION_SECRET`             | Random 32+ character string for session signing                                                     |
-| `UPWORK_CLIENT_ID`           | OAuth 2.1 client ID from Upwork Developer Center                                                    |
-| `UPWORK_CLIENT_SECRET`       | OAuth 2.1 client secret from Upwork Developer Center                                                |
 | `UPWORK_MCP_URL`             | Upwork MCP server URL (default: `https://mcp.upwork.com/mcp`)                                       |
 | `UPWORK_AUTH_URL`            | Upwork OAuth authorization endpoint (`https://www.upwork.com/ab/account-security/oauth2/authorize`) |
 | `UPWORK_TOKEN_URL`           | Upwork OAuth token exchange endpoint (`https://www.upwork.com/api/v3/oauth2/token`)                 |

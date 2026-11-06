@@ -71,9 +71,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 3. Token Exchange using PKCE (no client_secret - public client with auth method = none)
+    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
+
+    // 3. Token Exchange using PKCE with client_id metadata document URL
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
+      client_id: clientId,
       code,
       redirect_uri: redirectUri,
       code_verifier: codeVerifier,

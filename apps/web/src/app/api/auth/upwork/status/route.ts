@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
     const activeToken = profile.oauthTokens[0];
     const needsReconnect = profile.connectionStatus === 'DISCONNECTED' && activeToken;
 
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
+
     return NextResponse.json({
       profileId: profile.id,
       displayName: profile.displayName,
@@ -50,6 +53,7 @@ export async function GET(request: NextRequest) {
       lastConnectedAt: profile.lastConnectedAt,
       scopesGranted: activeToken?.scopesGranted ?? [],
       mcpServerUrl: process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp',
+      clientId,
       needsReconnect: Boolean(needsReconnect),
       reconnectReason: needsReconnect
         ? 'Token refresh failed. Click Reconnect Upwork to re-authorise.'

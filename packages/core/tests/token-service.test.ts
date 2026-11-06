@@ -146,6 +146,11 @@ describe('Task C: Token Service & Refresh Flow', () => {
 
     expect(token).toBe(newAccessToken);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    const callArgs = vi.mocked(global.fetch).mock.calls[0];
+    const bodyStr = String(callArgs[1]?.body || '');
+    expect(bodyStr).toContain('grant_type=refresh_token');
+    expect(bodyStr).toContain('client_id=');
   });
 
   it('triggers refresh when token expired 10 minutes ago', async () => {
@@ -265,7 +270,7 @@ describe('Task C: Token Service & Refresh Flow', () => {
     await getValidAccessToken('prof_test', TEST_KEY);
 
     expect(updatedData).toBeDefined();
-    expect(updatedData.encryptedRefreshToken).toBeDefined();
+    expect(updatedData?.encryptedRefreshToken).toBeDefined();
   });
 
   it('throws NeedsReconnectError and makes NO network call when no refresh token stored', async () => {

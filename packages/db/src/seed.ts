@@ -137,14 +137,14 @@ async function main() {
     }
   }
 
-  // ── Seed a fake job (for UI development) ──────────────────────────────────
-  console.log('→ Seeding fake job for UI development...');
-  await prisma.job.upsert({
+  // ── Seed fake jobs for review queue ──────────────────────────────────────
+  console.log('→ Seeding fake jobs for review queue...');
+  const seedJob1 = await prisma.job.upsert({
     where: { upworkJobId: 'SEED_JOB_001' },
-    update: {},
+    update: { status: 'DRAFT_READY' },
     create: {
       profileId: seedProfile.id,
-      upworkJobId: 'SEED_JOB_001', // FAKE — SEED DATA ONLY
+      upworkJobId: 'SEED_JOB_001',
       title: '[SEED] Need Amazon A Plus Content Designer for 5 ASINs',
       description:
         '[SEED DATA] Looking for an experienced A Plus Content designer for our brand. ' +
@@ -159,8 +159,78 @@ async function main() {
       proposalCount: 3,
       postedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
       skills: ['Amazon A+ Content', 'Graphic Design', 'Adobe Photoshop'],
-      jobUrl: 'https://www.upwork.com/jobs/SEED_JOB_001', // FAKE URL
-      status: 'NEW',
+      jobUrl: 'https://www.upwork.com/jobs/SEED_JOB_001',
+      status: 'DRAFT_READY',
+    },
+  });
+
+  await prisma.jobScore.create({
+    data: {
+      profileId: seedProfile.id,
+      jobId: seedJob1.id,
+      label: 'APPLY',
+      score: 85,
+      reasons: ['Strong niche match on Amazon A+ content', 'Verified payment and good hire rate'],
+      modelName: 'gemini-1.5-pro',
+      promptVersion: 'seed-v1',
+    },
+  });
+
+  await prisma.draft.create({
+    data: {
+      profileId: seedProfile.id,
+      jobId: seedJob1.id,
+      version: 1,
+      draftText:
+        'Hi, I saw your Amazon listing project and would love to help design clean, high-converting A+ modules focusing on conversion clarity.\n\n- Farid Malik',
+      wordCount: 195,
+      status: 'GENERATED',
+    },
+  });
+
+  // Second seed job for skip flow
+  const seedJob2 = await prisma.job.upsert({
+    where: { upworkJobId: 'SEED_JOB_002' },
+    update: { status: 'DRAFT_READY' },
+    create: {
+      profileId: seedProfile.id,
+      upworkJobId: 'SEED_JOB_002',
+      title: '[SEED] Simple Product Banner Edit',
+      description: '[SEED DATA] Minor banner revisions for Amazon store.',
+      budgetType: 'FIXED',
+      budgetAmountFixed: 120,
+      clientCountry: 'Canada',
+      clientTotalSpend: 2000,
+      clientHireRate: 0.5,
+      paymentVerified: true,
+      proposalCount: 15,
+      postedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      skills: ['Photoshop', 'Banners'],
+      jobUrl: 'https://www.upwork.com/jobs/SEED_JOB_002',
+      status: 'DRAFT_READY',
+    },
+  });
+
+  await prisma.jobScore.create({
+    data: {
+      profileId: seedProfile.id,
+      jobId: seedJob2.id,
+      label: 'APPLY',
+      score: 62,
+      reasons: ['Low budget', 'Marginal niche match'],
+      modelName: 'gemini-1.5-pro',
+      promptVersion: 'seed-v1',
+    },
+  });
+
+  await prisma.draft.create({
+    data: {
+      profileId: seedProfile.id,
+      jobId: seedJob2.id,
+      version: 1,
+      draftText: 'Hello, I can assist with quick banner resizing.\n\n- Farid Malik',
+      wordCount: 120,
+      status: 'GENERATED',
     },
   });
 

@@ -199,7 +199,12 @@ describe('Task A: Authentication and Session Security', () => {
       '/api/queue/jobs',
     ];
 
-    const PUBLIC_PATHS = ['/login', '/api/auth/login/request', '/api/auth/login/verify'];
+    const PUBLIC_PATHS = [
+      '/login',
+      '/api/auth/login/request',
+      '/api/auth/login/verify',
+      '/api/auth/upwork/client-metadata.json',
+    ];
 
     it('covers all protected API routes and ensures none overlap with public paths', () => {
       expect(PROTECTED_API_ROUTES.length).toBeGreaterThanOrEqual(13);

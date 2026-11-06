@@ -135,8 +135,12 @@ async function refreshWithOptimisticLock(
 
   let responseBody: Record<string, unknown>;
   try {
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
+
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
+      client_id: clientId,
       refresh_token: refreshToken,
     });
 
