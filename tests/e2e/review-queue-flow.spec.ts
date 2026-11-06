@@ -11,6 +11,17 @@
 
 import { test, expect } from '@playwright/test';
 
+/**
+ * TEST AUTHENTICATION (QA Finding 1 - Option b):
+ * Playwright E2E tests authenticate by setting the app_session cookie to
+ * 'mock_session_token_for_playwright_e2e_testing_32chars'.
+ * When running under NODE_ENV === 'test', Next.js middleware activates a clearly
+ * marked test bypass that accepts this token without requiring an active database
+ * session row in prisma.session. In production and development (NODE_ENV !== 'test'),
+ * the bypass is strictly inactive and every session must exist in the database.
+ */
+
+
 // Seeded fixture data for E2E tests
 const fixtureJobs = [
   {
@@ -93,7 +104,16 @@ const fixtureJobs = [
 ];
 
 test.describe('Review Queue Human Flow (Section D3)', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    // Provide an active session cookie so middleware grants page access
+    await context.addCookies([
+      {
+        name: 'app_session',
+        value: 'mock_session_token_for_playwright_e2e_testing_32chars',
+        domain: 'localhost',
+        path: '/',
+      },
+    ]);
     // Intercept queue API requests to provide seeded fixture reliably
     await page.route('**/api/queue/jobs?status=*', async (route) => {
       const url = new URL(route.request().url());
@@ -115,7 +135,7 @@ test.describe('Review Queue Human Flow (Section D3)', () => {
       });
     });
 
-    await page.route('**/api/queue/jobs/*', async (route) => {
+    await page.route('**/api/queue/jobs/**', async (route) => {
       const url = route.request().url();
       if (url.includes('/action')) {
         const postData = route.request().postDataJSON() || {};

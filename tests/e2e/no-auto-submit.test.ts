@@ -66,6 +66,18 @@ async function findBannedButtons(page: Page): Promise<string[]> {
 }
 
 test.describe('No Auto Submit — CRITICAL SAFETY TEST (D5)', () => {
+  test.beforeEach(async ({ context }) => {
+    // Provide active test session cookie so protected pages load under test mode
+    await context.addCookies([
+      {
+        name: 'app_session',
+        value: 'mock_session_token_for_playwright_e2e_testing_32chars',
+        domain: 'localhost',
+        path: '/',
+      },
+    ]);
+  });
+
   for (const path of REVIEW_QUEUE_PAGES) {
     test(`No banned submit buttons on ${path}`, async ({ page }) => {
       await page.goto(path);
