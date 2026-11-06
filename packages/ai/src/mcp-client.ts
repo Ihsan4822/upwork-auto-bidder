@@ -74,7 +74,9 @@ export class UpworkMcpClient {
         if (response.status === 429) {
           throw new Error('Upwork MCP rate limit encountered (HTTP 429). Backing off.');
         }
-        throw new Error(`Upwork MCP tool call failed with status ${response.status}: ${response.statusText}`);
+        throw new Error(
+          `Upwork MCP tool call failed with status ${response.status}: ${response.statusText}`,
+        );
       }
 
       const json = (await response.json()) as { content?: Array<{ text?: string }> };
@@ -95,9 +97,12 @@ export class UpworkMcpClient {
         throw err;
       }
       // Re-throw or wrap with context
-      throw new Error(`Failed to execute MCP search_jobs: ${err instanceof Error ? err.message : String(err)}`, {
-        cause: err,
-      });
+      throw new Error(
+        `Failed to execute MCP search_jobs: ${err instanceof Error ? err.message : String(err)}`,
+        {
+          cause: err,
+        },
+      );
     }
   }
 

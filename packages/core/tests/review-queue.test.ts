@@ -3,10 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  isValidTransition,
-  getNextDraftVersion,
-} from '../src/review-queue';
+import { isValidTransition, getNextDraftVersion } from '../src/review-queue';
 
 describe('Review Queue State Machine — Module 6', () => {
   it('allows transition from DRAFT_READY to IN_REVIEW and APPROVED', () => {

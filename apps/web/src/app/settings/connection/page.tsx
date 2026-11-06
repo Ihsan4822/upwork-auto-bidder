@@ -18,7 +18,10 @@ export default function UpworkConnectionPage() {
     registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
   });
   const [actionLoading, setActionLoading] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   // Load current connection status from server API
   useEffect(() => {
@@ -84,7 +87,11 @@ export default function UpworkConnectionPage() {
   }
 
   async function handleDisconnect() {
-    if (!confirm('Are you sure you want to disconnect? Stored OAuth tokens will be permanently deleted from the database.')) {
+    if (
+      !confirm(
+        'Are you sure you want to disconnect? Stored OAuth tokens will be permanently deleted from the database.',
+      )
+    ) {
       return;
     }
 
@@ -118,7 +125,8 @@ export default function UpworkConnectionPage() {
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Upwork MCP Connection (Step 2)</h2>
         <p className="text-sm text-slate-600 mt-1">
-          Connect your Upwork profile via the official Upwork MCP server using OAuth 2.1 read-only permissions.
+          Connect your Upwork profile via the official Upwork MCP server using OAuth 2.1 read-only
+          permissions.
         </p>
       </div>
 
@@ -139,15 +147,17 @@ export default function UpworkConnectionPage() {
       <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase font-semibold text-slate-500 tracking-wider">Current Status</p>
+            <p className="text-xs uppercase font-semibold text-slate-500 tracking-wider">
+              Current Status
+            </p>
             <div className="flex items-center space-x-2 mt-1.5">
               <span
                 className={`w-3 h-3 rounded-full ${
                   connection.status === 'CONNECTED'
                     ? 'bg-emerald-500'
                     : connection.status === 'SCOPE_CHANGED'
-                    ? 'bg-amber-500'
-                    : 'bg-slate-300'
+                      ? 'bg-amber-500'
+                      : 'bg-slate-300'
                 }`}
               />
               <span className="text-lg font-bold text-slate-900">
@@ -190,9 +200,9 @@ export default function UpworkConnectionPage() {
         {/* Warning if scope changed */}
         {connection.status === 'SCOPE_CHANGED' && (
           <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-sm">
-            <strong>Warning (Section 3, Rule 5):</strong> Upwork returned scopes that differ from your approved
-            read-only scope list. All automated monitoring has been stopped. Please disconnect and re-verify your
-            permissions before reconnecting.
+            <strong>Warning (Section 3, Rule 5):</strong> Upwork returned scopes that differ from
+            your approved read-only scope list. All automated monitoring has been stopped. Please
+            disconnect and re-verify your permissions before reconnecting.
           </div>
         )}
       </div>
@@ -204,8 +214,8 @@ export default function UpworkConnectionPage() {
             Permission Boundary &amp; Consent Transparency
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            As required by Section 2 and Section 3 of the project brief, this tool strictly limits permissions to
-            read-only discovery.
+            As required by Section 2 and Section 3 of the project brief, this tool strictly limits
+            permissions to read-only discovery.
           </p>
         </div>
 
@@ -249,9 +259,10 @@ export default function UpworkConnectionPage() {
             5 November 2026 OAuth Lesson Acceptance Rule (Section 3, Rule 1):
           </p>
           <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-            The application name shown on the Upwork authorization screen must match your registered product. If any
-            unrecognized app name appears, or if write/messaging/proposal permissions are requested,{' '}
-            <strong>do not authorize</strong>. Cancel immediately and report it.
+            The application name shown on the Upwork authorization screen must match your registered
+            product. If any unrecognized app name appears, or if write/messaging/proposal
+            permissions are requested, <strong>do not authorize</strong>. Cancel immediately and
+            report it.
           </p>
         </div>
 
@@ -273,12 +284,16 @@ export default function UpworkConnectionPage() {
                 <tr>
                   <td className="px-3 py-2 font-mono font-medium text-slate-800">jobs:read</td>
                   <td className="px-3 py-2 text-emerald-700 font-semibold">Read Only</td>
-                  <td className="px-3 py-2 text-slate-600">Scan marketplace listings for saved searches</td>
+                  <td className="px-3 py-2 text-slate-600">
+                    Scan marketplace listings for saved searches
+                  </td>
                 </tr>
                 <tr>
                   <td className="px-3 py-2 font-mono font-medium text-slate-800">profile:read</td>
                   <td className="px-3 py-2 text-emerald-700 font-semibold">Read Only</td>
-                  <td className="px-3 py-2 text-slate-600">Match jobs to Farid Malik&apos;s Amazon design services</td>
+                  <td className="px-3 py-2 text-slate-600">
+                    Match jobs to Farid Malik&apos;s Amazon design services
+                  </td>
                 </tr>
               </tbody>
             </table>

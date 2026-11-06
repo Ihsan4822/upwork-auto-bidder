@@ -75,7 +75,9 @@ export function normalizeMcpJob(raw: RawMcpJob): NormalizedJob {
     paymentVerified: typeof raw.payment_verified === 'boolean' ? raw.payment_verified : null,
     proposalCount: typeof raw.proposal_count === 'number' ? Math.max(0, raw.proposal_count) : null,
     postedAt,
-    skills: Array.isArray(raw.skills) ? raw.skills.filter((s): s is string => typeof s === 'string') : [],
+    skills: Array.isArray(raw.skills)
+      ? raw.skills.filter((s): s is string => typeof s === 'string')
+      : [],
     jobUrl: raw.url?.trim() || null,
   };
 }

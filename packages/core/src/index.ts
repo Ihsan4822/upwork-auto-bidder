@@ -9,3 +9,4 @@ export * from './crypto';
 export * from './filters';
 export * from './oauth';
 export * from './review-queue';
+export * from './token-service';

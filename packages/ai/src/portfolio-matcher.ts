@@ -68,7 +68,10 @@ export function matchPortfolioItem(
     }
 
     // Secondary boost if title words appear in job description
-    const titleWords = item.title.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+    const titleWords = item.title
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 3);
     for (const word of titleWords) {
       if (textLower.includes(word)) {
         score += 2;

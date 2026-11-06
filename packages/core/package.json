@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@upwork-bidder/config": "workspace:*",
+    "@upwork-bidder/db": "workspace:*",
     "zod": "^3.23.0"
   },
   "devDependencies": {

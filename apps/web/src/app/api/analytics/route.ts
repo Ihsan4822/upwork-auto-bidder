@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
     const scoredCount = await prisma.jobScore.count();
     const draftedCount = await prisma.draft.count();
     const approvedCount = await prisma.job.count({ where: { status: 'APPROVED' } });
-    const submittedManuallyCount = await prisma.job.count({ where: { status: 'SUBMITTED_MANUALLY' } });
+    const submittedManuallyCount = await prisma.job.count({
+      where: { status: 'SUBMITTED_MANUALLY' },
+    });
 
     const entries = await prisma.analyticsEntry.findMany({
       select: {

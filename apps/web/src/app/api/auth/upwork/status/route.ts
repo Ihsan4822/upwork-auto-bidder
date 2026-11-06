@@ -10,16 +10,11 @@ export async function GET(request: NextRequest) {
 
   const { user } = sessionResult;
 
-  const registeredAppName =
-    process.env.UPWORK_REGISTERED_APP_NAME ||
-    (process.env.UPWORK_CLIENT_ID ? 'Upwork Proposal Assistant' : 'Not Registered (Pending Upwork Developer Key)');
-
   const fallback = {
     status: 'DISCONNECTED',
     displayName: user.email.split('@')[0],
-    registeredAppName,
     scopesGranted: [],
-    isAppConfigured: Boolean(process.env.UPWORK_CLIENT_ID),
+    mcpServerUrl: process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp',
   };
 
   try {
@@ -46,6 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     const activeToken = profile.oauthTokens[0];
+    const needsReconnect = profile.connectionStatus === 'DISCONNECTED' && activeToken;
 
     return NextResponse.json({
       profileId: profile.id,
@@ -53,8 +49,11 @@ export async function GET(request: NextRequest) {
       status: activeToken ? profile.connectionStatus : 'DISCONNECTED',
       lastConnectedAt: profile.lastConnectedAt,
       scopesGranted: activeToken?.scopesGranted ?? [],
-      registeredAppName,
-      isAppConfigured: Boolean(process.env.UPWORK_CLIENT_ID),
+      mcpServerUrl: process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp',
+      needsReconnect: Boolean(needsReconnect),
+      reconnectReason: needsReconnect
+        ? 'Token refresh failed. Click Reconnect Upwork to re-authorise.'
+        : undefined,
     });
   } catch {
     // Return safe disconnected state immediately on any error or timeout

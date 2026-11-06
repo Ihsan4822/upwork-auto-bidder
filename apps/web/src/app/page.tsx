@@ -45,8 +45,9 @@ export default function HomePage() {
         <div>
           <h2 className="text-sm font-semibold text-emerald-900">Safe Model Active</h2>
           <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
-            Strict read-only MCP access. Auto-submit, auto-boost, and messaging access are completely disabled.
-            All proposals are reviewed and submitted manually by human hands on Upwork.
+            Strict read-only MCP access. Auto-submit, auto-boost, and messaging access are
+            completely disabled. All proposals are reviewed and submitted manually by human hands on
+            Upwork.
           </p>
         </div>
       </div>
@@ -63,7 +64,9 @@ export default function HomePage() {
           href="/jobs/filtered"
           className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-slate-300 transition-colors block"
         >
-          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Filtered Out</p>
+          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">
+            Filtered Out
+          </p>
           <p className="text-2xl font-bold text-slate-900 mt-2">{stats.filteredOut}</p>
           <span className="text-xs text-red-600 font-medium mt-1 block">View audit reasons →</span>
         </Link>
@@ -72,7 +75,9 @@ export default function HomePage() {
           href="/jobs/scored"
           className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-slate-300 transition-colors block"
         >
-          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Scored by AI</p>
+          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">
+            Scored by AI
+          </p>
           <p className="text-2xl font-bold text-slate-900 mt-2">{stats.totalScored}</p>
           <span className="text-xs text-emerald-600 font-medium mt-1 block">
             {stats.applyCount} Apply · {stats.boostCount} Boost →
@@ -83,7 +88,9 @@ export default function HomePage() {
           href="/queue"
           className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-slate-300 transition-colors block"
         >
-          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">Submitted Manually</p>
+          <p className="text-xs uppercase font-medium text-slate-500 tracking-wider">
+            Submitted Manually
+          </p>
           <p className="text-2xl font-bold text-slate-900 mt-2">{stats.submitted}</p>
           <span className="text-xs text-slate-400 mt-1 block">Zero Connects spent by app</span>
         </Link>
@@ -94,8 +101,9 @@ export default function HomePage() {
         <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Module 2: Hard Filters Audit</h3>
           <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            Verify rejection reasons in real time. Hard filters block jobs below the $15/hr hourly or $100 fixed floor,
-            unverified payment clients, and jobs outside Farid&apos;s Amazon niches.
+            Verify rejection reasons in real time. Hard filters block jobs below the $15/hr hourly
+            or $100 fixed floor, unverified payment clients, and jobs outside Farid&apos;s Amazon
+            niches.
           </p>
           <div className="mt-4">
             <Link
@@ -110,8 +118,8 @@ export default function HomePage() {
         <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Module 3: AI Scoring Results</h3>
           <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            Review Gemini 1.5 Pro evaluations for passing jobs. Every score provides 3 to 5 structured reasons and honest
-            nulls for unavailable client fields.
+            Review Gemini 1.5 Pro evaluations for passing jobs. Every score provides 3 to 5
+            structured reasons and honest nulls for unavailable client fields.
           </p>
           <div className="mt-4">
             <Link

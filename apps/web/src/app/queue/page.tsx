@@ -46,7 +46,8 @@ export default function ReviewQueuePage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Proposal Review Queue (Module 6)</h2>
           <p className="text-sm text-slate-600 mt-1">
-            Human-in-the-loop review. Inspect AI drafts, edit versions, approve, and mark submitted manually.
+            Human-in-the-loop review. Inspect AI drafts, edit versions, approve, and mark submitted
+            manually.
           </p>
         </div>
         <div className="text-xs bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full font-medium">
@@ -56,19 +57,21 @@ export default function ReviewQueuePage() {
 
       {/* Tabs */}
       <div className="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto text-xs font-semibold">
-        {['ALL', 'DRAFT_READY', 'IN_REVIEW', 'APPROVED', 'SUBMITTED_MANUALLY', 'SKIPPED'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1.5 rounded-md transition-colors ${
-              activeTab === tab
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            {tab.replace('_', ' ')}
-          </button>
-        ))}
+        {['ALL', 'DRAFT_READY', 'IN_REVIEW', 'APPROVED', 'SUBMITTED_MANUALLY', 'SKIPPED'].map(
+          (tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3 py-1.5 rounded-md transition-colors ${
+                activeTab === tab
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              {tab.replace('_', ' ')}
+            </button>
+          ),
+        )}
       </div>
 
       {loading ? (
@@ -98,10 +101,10 @@ export default function ReviewQueuePage() {
                           job.status === 'APPROVED'
                             ? 'bg-emerald-100 text-emerald-800'
                             : job.status === 'SUBMITTED_MANUALLY'
-                            ? 'bg-blue-100 text-blue-800'
-                            : job.status === 'DRAFT_READY'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-slate-100 text-slate-700'
+                              ? 'bg-blue-100 text-blue-800'
+                              : job.status === 'DRAFT_READY'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-slate-100 text-slate-700'
                         }`}
                       >
                         {job.status.replace('_', ' ')}

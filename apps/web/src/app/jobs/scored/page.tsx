@@ -48,7 +48,8 @@ export default function ScoredJobsPage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Scored Jobs (Module 3)</h2>
           <p className="text-sm text-slate-600 mt-1">
-            Jobs that passed hard filters and were evaluated by AI for niche fit, client quality, and timing.
+            Jobs that passed hard filters and were evaluated by AI for niche fit, client quality,
+            and timing.
           </p>
         </div>
         <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full font-medium">
@@ -67,7 +68,10 @@ export default function ScoredJobsPage() {
       ) : (
         <div className="space-y-5">
           {scores.map((item) => (
-            <div key={item.id} className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+            <div
+              key={item.id}
+              className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4"
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center space-x-2.5">
@@ -76,17 +80,19 @@ export default function ScoredJobsPage() {
                         item.label === 'APPLY_PLUS_BOOST'
                           ? 'bg-purple-100 text-purple-800 border border-purple-200'
                           : item.label === 'APPLY'
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
                       }`}
                     >
                       {item.label === 'APPLY_PLUS_BOOST'
                         ? '★ APPLY + BOOST'
                         : item.label === 'APPLY'
-                        ? '✓ APPLY'
-                        : '✕ SKIP'}
+                          ? '✓ APPLY'
+                          : '✕ SKIP'}
                     </span>
-                    <span className="text-sm font-bold text-slate-700">Score: {item.score}/100</span>
+                    <span className="text-sm font-bold text-slate-700">
+                      Score: {item.score}/100
+                    </span>
                     <span className="text-xs text-slate-400">({item.modelName})</span>
                   </div>
 
@@ -100,7 +106,10 @@ export default function ScoredJobsPage() {
                     <span>{item.job.clientCountry || 'Country Not Available'}</span>
                     <span>•</span>
                     <span>
-                      Spend: {item.job.clientTotalSpend !== null ? `$${item.job.clientTotalSpend}` : 'Not Available'}
+                      Spend:{' '}
+                      {item.job.clientTotalSpend !== null
+                        ? `$${item.job.clientTotalSpend}`
+                        : 'Not Available'}
                     </span>
                     <span>•</span>
                     <span>
@@ -110,7 +119,10 @@ export default function ScoredJobsPage() {
                         : 'Not Available'}
                     </span>
                     <span>•</span>
-                    <span>Proposals: {item.job.proposalCount !== null ? item.job.proposalCount : 'Not Available'}</span>
+                    <span>
+                      Proposals:{' '}
+                      {item.job.proposalCount !== null ? item.job.proposalCount : 'Not Available'}
+                    </span>
                   </div>
                 </div>
 

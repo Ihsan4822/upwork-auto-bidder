@@ -51,11 +51,7 @@ interface PortfolioItem {
   nicheTags: string[];
 }
 
-export default function SingleJobReviewPage({
-  params,
-}: {
-  params: Promise<{ jobId: string }>;
-}) {
+export default function SingleJobReviewPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
   const [job, setJob] = useState<SingleJobData | null>(null);
   const [portfolioList, setPortfolioList] = useState<PortfolioItem[]>([]);
@@ -161,10 +157,10 @@ export default function SingleJobReviewPage({
             job.status === 'APPROVED'
               ? 'bg-emerald-100 text-emerald-800'
               : job.status === 'SUBMITTED_MANUALLY'
-              ? 'bg-blue-100 text-blue-800'
-              : job.status === 'DRAFT_READY'
-              ? 'bg-amber-100 text-amber-800'
-              : 'bg-slate-100 text-slate-700'
+                ? 'bg-blue-100 text-blue-800'
+                : job.status === 'DRAFT_READY'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-slate-100 text-slate-700'
           }`}
         >
           Status: {job.status.replace('_', ' ')}
@@ -187,8 +183,9 @@ export default function SingleJobReviewPage({
                 <span>Approved For Manual Submit (Human Gate)</span>
               </h3>
               <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
-                Copy your approved draft below, open Upwork in your browser, and submit with your own hands.
-                Then click &quot;Mark as Submitted Manually&quot; to log the timestamp in analytics.
+                Copy your approved draft below, open Upwork in your browser, and submit with your
+                own hands. Then click &quot;Mark as Submitted Manually&quot; to log the timestamp in
+                analytics.
               </p>
             </div>
 
@@ -231,7 +228,9 @@ export default function SingleJobReviewPage({
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 leading-snug">{job.title || 'Untitled Job'}</h2>
+            <h2 className="text-xl font-bold text-slate-900 leading-snug">
+              {job.title || 'Untitled Job'}
+            </h2>
             <div className="flex items-center space-x-3 text-xs text-slate-500 mt-1">
               <span>ID: {job.upworkJobId}</span>
               <span>•</span>
@@ -244,7 +243,9 @@ export default function SingleJobReviewPage({
                   : `$${job.hourlyRateMin ?? '?'}-$${job.hourlyRateMax ?? '?'}/hr`}
               </span>
               <span>•</span>
-              <span>Proposals: {job.proposalCount !== null ? job.proposalCount : 'Not Available'}</span>
+              <span>
+                Proposals: {job.proposalCount !== null ? job.proposalCount : 'Not Available'}
+              </span>
             </div>
           </div>
 
@@ -302,7 +303,9 @@ export default function SingleJobReviewPage({
                   key={d.id}
                   onClick={() => handleVersionChange(d.version)}
                   className={`text-xs px-2.5 py-1 rounded font-semibold transition-colors ${
-                    selectedVersion === d.version ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                    selectedVersion === d.version
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600'
                   }`}
                 >
                   v{d.version}
@@ -317,8 +320,8 @@ export default function SingleJobReviewPage({
                 wordCount >= 180 && wordCount <= 240
                   ? 'text-emerald-700'
                   : wordCount > 250
-                  ? 'text-amber-700'
-                  : 'text-slate-500'
+                    ? 'text-amber-700'
+                    : 'text-slate-500'
               }`}
             >
               {wordCount} words (Target: ~200)

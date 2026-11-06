@@ -1,4 +1,5 @@
 # Upwork Auto Bidder — Internal MVP
+
 **Owner:** Muhammad Ihsan (`Ihsan4822`) | **Target Profile:** Farid Malik | **Status:** MVP Delivered & Hardened
 
 ---
@@ -16,6 +17,7 @@ Upwork himself.** This app never submits anything.
 ## 30-Minute Setup (Fresh Clone)
 
 ### Prerequisites
+
 - Node.js ≥ 20
 - pnpm ≥ 9 (`npm install -g pnpm`)
 - PostgreSQL running locally (or free cloud Postgres from Neon / Supabase)
@@ -131,14 +133,14 @@ Small, safe changes anyone can make. Run the tests listed after each change.
 
 ## Key Documents
 
-| Document | Purpose |
-|---|---|
-| [`docs/PRD.md`](docs/PRD.md) | Product scope, modules, OAuth/MCP scope, out-of-scope |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Modules, data flow, adapters, queue |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Every important choice, dated, with reason |
-| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Run, deploy, backup, restore, security |
-| [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md) | Deferred scope, blocked items, known gaps |
-| [`AGENTS.md`](AGENTS.md) | First file any AI tool must read |
+| Document                                       | Purpose                                               |
+| ---------------------------------------------- | ----------------------------------------------------- |
+| [`docs/PRD.md`](docs/PRD.md)                   | Product scope, modules, OAuth/MCP scope, out-of-scope |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Modules, data flow, adapters, queue                   |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md)       | Every important choice, dated, with reason            |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md)           | Run, deploy, backup, restore, security                |
+| [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md)     | Deferred scope, blocked items, known gaps             |
+| [`AGENTS.md`](AGENTS.md)                       | First file any AI tool must read                      |
 
 ---
 

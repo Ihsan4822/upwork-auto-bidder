@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
-import {
-  hashToken,
-  compareTokens,
-  isMagicLinkExpired,
-} from '@upwork-bidder/core';
+import { hashToken, isMagicLinkExpired } from '@upwork-bidder/core';
 import { createSession, setSessionCookie } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -27,11 +23,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user || !user.magicLinkToken) {
-      return NextResponse.redirect(`${appUrl}/login?error=link_invalid_or_expired`);
-    }
-
-    // A3: Constant-time comparison check
-    if (!compareTokens(token, user.magicLinkToken)) {
       return NextResponse.redirect(`${appUrl}/login?error=link_invalid_or_expired`);
     }
 

@@ -9,11 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  validateProposalClaims,
-  countWords,
-  draftProposalWithAi,
-} from '../src/drafter';
+import { validateProposalClaims, countWords, draftProposalWithAi } from '../src/drafter';
 import type { AiProvider } from '../src/provider';
 import type { NormalizedJob } from '../src/job-mapper';
 import type { PortfolioItemInput } from '../src/portfolio-matcher';
@@ -76,14 +72,20 @@ describe('Proposal Drafting & Formula Validation — Module 4', () => {
   });
 
   it('rejects proposals containing unprovable claim "guarantee"', () => {
-    const badProposal = VALID_FORMULA_PROPOSAL.replace('drives confident', 'I guarantee you double sales');
+    const badProposal = VALID_FORMULA_PROPOSAL.replace(
+      'drives confident',
+      'I guarantee you double sales',
+    );
     const result = validateProposalClaims(badProposal);
     expect(result.valid).toBe(false);
     expect(result.reason).toContain('guarantee');
   });
 
   it('rejects proposals containing hype phrase "skyrocket"', () => {
-    const badProposal = VALID_FORMULA_PROPOSAL.replace('drives confident', 'will skyrocket your brand');
+    const badProposal = VALID_FORMULA_PROPOSAL.replace(
+      'drives confident',
+      'will skyrocket your brand',
+    );
     const result = validateProposalClaims(badProposal);
     expect(result.valid).toBe(false);
     expect(result.reason).toContain('skyrocket');

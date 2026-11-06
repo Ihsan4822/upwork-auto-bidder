@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
-import { getNextDraftVersion, countWords, isValidTransition, QueueState } from '@upwork-bidder/core';
+import {
+  getNextDraftVersion,
+  countWords,
+  isValidTransition,
+  QueueState,
+} from '@upwork-bidder/core';
 import { z } from 'zod';
 import { requireSession } from '@/lib/auth';
 
@@ -160,7 +165,9 @@ export async function POST(
     if (action === 'MARK_SUBMITTED') {
       if (!isValidTransition(currentStatus, 'SUBMITTED_MANUALLY')) {
         return NextResponse.json(
-          { error: `Illegal state transition from ${currentStatus} to SUBMITTED_MANUALLY. Job must be APPROVED first.` },
+          {
+            error: `Illegal state transition from ${currentStatus} to SUBMITTED_MANUALLY. Job must be APPROVED first.`,
+          },
           { status: 400 },
         );
       }

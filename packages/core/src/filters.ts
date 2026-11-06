@@ -31,9 +31,7 @@ export interface FilterFloors {
 }
 
 /** Result of running hard filters on a job. */
-export type FilterResult =
-  | { passed: true }
-  | { passed: false; reason: FilterFailureReason };
+export type FilterResult = { passed: true } | { passed: false; reason: FilterFailureReason };
 
 /**
  * Plain-word failure reasons stored in the database.

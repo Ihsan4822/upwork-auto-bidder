@@ -5,14 +5,11 @@ import HeaderAuth from '../components/HeaderAuth';
 
 export const metadata: Metadata = {
   title: 'Upwork Auto Bidder - Assistant',
-  description: 'Internal job finder, scorer and proposal draft assistant for Amazon design services.',
+  description:
+    'Internal job finder, scorer and proposal draft assistant for Amazon design services.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900">
@@ -35,19 +32,34 @@ export default function RootLayout({
                 <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
                   Dashboard
                 </Link>
-                <Link href="/jobs/scored" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <Link
+                  href="/jobs/scored"
+                  className="text-slate-600 hover:text-slate-900 transition-colors"
+                >
                   Scored Jobs
                 </Link>
-                <Link href="/jobs/filtered" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <Link
+                  href="/jobs/filtered"
+                  className="text-slate-600 hover:text-slate-900 transition-colors"
+                >
                   Filtered Out
                 </Link>
-                <Link href="/queue" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <Link
+                  href="/queue"
+                  className="text-slate-600 hover:text-slate-900 transition-colors"
+                >
                   Review Queue
                 </Link>
-                <Link href="/portfolio" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <Link
+                  href="/portfolio"
+                  className="text-slate-600 hover:text-slate-900 transition-colors"
+                >
                   Portfolio
                 </Link>
-                <Link href="/analytics" className="text-slate-600 hover:text-slate-900 transition-colors">
+                <Link
+                  href="/analytics"
+                  className="text-slate-600 hover:text-slate-900 transition-colors"
+                >
                   Analytics
                 </Link>
                 <Link

@@ -1,4 +1,5 @@
 # docs/DECISIONS.md
+
 **Format:** Date · Decision · Reason · Rejected alternative
 
 ---

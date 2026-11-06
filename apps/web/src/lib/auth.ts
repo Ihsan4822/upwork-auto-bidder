@@ -9,11 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, type User } from '@upwork-bidder/db';
-import {
-  generateRawToken,
-  hashToken,
-  SESSION_TTL_DAYS,
-} from '@upwork-bidder/core';
+import { generateRawToken, hashToken, SESSION_TTL_DAYS } from '@upwork-bidder/core';
 
 export const SESSION_COOKIE_NAME = 'app_session';
 
@@ -64,13 +60,14 @@ export async function getCurrentUser(request: Request | NextRequest): Promise<Us
 }
 
 export type RequireSessionResult =
-  | { user: User; errorResponse?: undefined }
-  | { user?: undefined; errorResponse: NextResponse };
+  { user: User; errorResponse?: undefined } | { user?: undefined; errorResponse: NextResponse };
 
 /**
  * Guard that enforces an active session or returns an immediate 401 response.
  */
-export async function requireSession(request: Request | NextRequest): Promise<RequireSessionResult> {
+export async function requireSession(
+  request: Request | NextRequest,
+): Promise<RequireSessionResult> {
   const user = await getCurrentUser(request);
   if (!user) {
     return {
@@ -86,7 +83,9 @@ export async function requireSession(request: Request | NextRequest): Promise<Re
 /**
  * Creates a new session in the database for a user and returns the raw token and expiry.
  */
-export async function createSession(userId: string): Promise<{ rawSessionToken: string; expiresAt: Date }> {
+export async function createSession(
+  userId: string,
+): Promise<{ rawSessionToken: string; expiresAt: Date }> {
   const rawSessionToken = generateRawToken();
   const sessionTokenHash = hashToken(rawSessionToken);
   const ttlDays = Number(process.env.SESSION_TTL_DAYS) || SESSION_TTL_DAYS;
@@ -117,11 +116,7 @@ export async function revokeSessionByToken(rawSessionToken: string): Promise<voi
 /**
  * Attaches the session cookie to an outgoing HTTP response.
  */
-export function setSessionCookie(
-  response: NextResponse,
-  rawToken: string,
-  expiresAt: Date,
-): void {
+export function setSessionCookie(response: NextResponse, rawToken: string, expiresAt: Date): void {
   response.cookies.set(SESSION_COOKIE_NAME, rawToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

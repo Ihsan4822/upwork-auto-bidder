@@ -1,7 +1,9 @@
 /**
- * index.ts — Background worker entry point for Upwork Auto Bidder.
+ * index.ts - Background worker entry point for Upwork Auto Bidder.
  *
  * Runs scheduled polling, filtering, and scoring jobs.
+ * Uses getValidAccessToken() for automatic token refresh - never decrypts
+ * tokens directly. A NeedsReconnectError causes a clean skip for the profile.
  */
 
 import { existsSync, readFileSync } from 'fs';
@@ -22,7 +24,10 @@ function loadEnv() {
         const trimmed = line.trim();
         if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
           const [key, ...rest] = trimmed.split('=');
-          const val = rest.join('=').trim().replace(/^["']|["']$/g, '');
+          const val = rest
+            .join('=')
+            .trim()
+            .replace(/^["']|["']$/g, '');
           const cleanKey = key.trim();
           if (cleanKey && !process.env[cleanKey]) {
             process.env[cleanKey] = val;
@@ -36,7 +41,7 @@ function loadEnv() {
 loadEnv();
 
 import { prisma } from '@upwork-bidder/db';
-import { decryptToken } from '@upwork-bidder/core';
+import { getValidAccessToken, NeedsReconnectError } from '@upwork-bidder/core';
 import { UpworkMcpClient } from '@upwork-bidder/ai';
 import { DEFAULT_POLL_INTERVAL_MINUTES } from '@upwork-bidder/config';
 import { executePipelineCycle } from './pipeline';
@@ -62,31 +67,69 @@ export async function runWorkerIteration(): Promise<void> {
     // Find connected profiles
     const profiles = await prisma.profile.findMany({
       where: { connectionStatus: 'CONNECTED' },
-      include: {
-        oauthTokens: {
-          where: { revokedAt: null },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
     });
 
     if (profiles.length === 0) {
-      console.log('[Worker] No connected Upwork profiles found. Waiting for user to connect in UI.');
+      console.log(
+        '[Worker] No connected Upwork profiles found. Waiting for user to connect in UI.',
+      );
       return;
     }
 
     for (const profile of profiles) {
-      const tokenRecord = profile.oauthTokens[0];
-      if (!tokenRecord) continue;
-
       try {
-        const decryptedToken = decryptToken(tokenRecord.encryptedAccessToken, encryptionKey);
+        // getValidAccessToken handles refresh automatically.
+        // On 401 from MCP we retry once with forceRefresh.
         const mcpUrl = process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp';
-        const client = new UpworkMcpClient(decryptedToken, mcpUrl);
+        let accessToken: string;
 
-        console.log(`[Worker] Running pipeline for profile: ${profile.displayName} (${profile.id})`);
-        const summary = await executePipelineCycle(profile.id, client);
+        try {
+          accessToken = await getValidAccessToken(profile.id, encryptionKey);
+        } catch (err) {
+          if (err instanceof NeedsReconnectError) {
+            console.warn(
+              `[Worker] Profile ${profile.displayName} (${profile.id}): needs reconnect. Skipping.`,
+            );
+            continue;
+          }
+          throw err;
+        }
+
+        let client = new UpworkMcpClient(accessToken, mcpUrl);
+
+        console.log(
+          `[Worker] Running pipeline for profile: ${profile.displayName} (${profile.id})`,
+        );
+
+        let summary;
+        try {
+          summary = await executePipelineCycle(profile.id, client);
+        } catch (err: unknown) {
+          // Single retry on 401 - refresh token and retry exactly once.
+          const is401 = err instanceof Error && err.message.includes('401');
+          if (is401) {
+            console.warn(
+              `[Worker] Profile ${profile.id}: 401 from MCP, refreshing token and retrying once.`,
+            );
+            try {
+              const refreshedToken = await getValidAccessToken(profile.id, encryptionKey, {
+                forceRefresh: true,
+              });
+              client = new UpworkMcpClient(refreshedToken, mcpUrl);
+              summary = await executePipelineCycle(profile.id, client);
+            } catch (retryErr) {
+              if (retryErr instanceof NeedsReconnectError) {
+                console.warn(
+                  `[Worker] Profile ${profile.id}: reconnect required after retry. Skipping.`,
+                );
+                continue;
+              }
+              throw retryErr;
+            }
+          } else {
+            throw err;
+          }
+        }
 
         console.log('[Worker] Pipeline cycle completed successfully:');
         console.table(summary);
@@ -97,7 +140,9 @@ export async function runWorkerIteration(): Promise<void> {
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("Can't reach database server")) {
       console.warn('[Worker] PostgreSQL server at localhost:5432 is not currently running.');
-      console.warn('[Worker] Please start PostgreSQL (or provide a cloud DATABASE_URL in .env). Worker will retry on next scheduled interval.');
+      console.warn(
+        '[Worker] Please start PostgreSQL (or provide a cloud DATABASE_URL in .env). Worker will retry on next scheduled interval.',
+      );
     } else {
       console.error('[Worker] Fatal error during iteration:', err);
     }
@@ -108,7 +153,8 @@ export async function runWorkerIteration(): Promise<void> {
 
 // Start polling loop when executed directly
 if (require.main === module) {
-  const pollIntervalMs = (Number(process.env.POLL_INTERVAL_MINUTES) || DEFAULT_POLL_INTERVAL_MINUTES) * 60 * 1000;
+  const pollIntervalMs =
+    (Number(process.env.POLL_INTERVAL_MINUTES) || DEFAULT_POLL_INTERVAL_MINUTES) * 60 * 1000;
   console.log(`[Worker] Worker process started. Polling every ${pollIntervalMs / 60000} minutes.`);
 
   // Immediate first run

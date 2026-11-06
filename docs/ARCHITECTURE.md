@@ -1,4 +1,5 @@
 # docs/ARCHITECTURE.md
+
 **Last updated:** 2026-11-05 | **Phase:** 1
 
 ---
@@ -103,6 +104,7 @@ packages/ui ────────────────────► (com
 ## Adapters (All External Calls Sit Behind These)
 
 ### Upwork MCP Adapter (`packages/ai/src/mcp-client.ts`)
+
 - Connects to `https://mcp.upwork.com/mcp` via HTTP MCP transport
 - Uses OAuth 2.1 token from `oauth_tokens` table (encrypted, server-side only)
 - **Allowlist enforced:** only calls tools in `mcp-allowlist.ts`
@@ -111,6 +113,7 @@ packages/ui ────────────────────► (com
 - On scope change detection: stops all polling, emits `MCP_SCOPE_CHANGED` event, waits for human
 
 ### AI Model Adapter (`packages/ai/src/provider.ts`)
+
 - Single interface: `AiProvider` with methods `score(job)` and `draft(job, portfolioItem)`
 - Current implementation: Gemini 1.5 Pro via `@google/generative-ai`
 - Swapping the model = editing this one file only
@@ -120,15 +123,15 @@ packages/ui ────────────────────► (com
 
 ## Modules and Their Boundaries
 
-| Module | Package | External dependencies | Owned tables |
-|---|---|---|---|
-| Job Monitoring | `apps/worker` + `packages/ai` (MCP) | Upwork MCP | `jobs` |
-| Hard Filters | `packages/core` | None | writes to `jobs.status` |
-| AI Scoring | `packages/ai` | AI model provider | `job_scores` |
-| Draft Engine | `packages/ai` | AI model provider | `drafts` |
-| Portfolio Match | `packages/core` | None | reads `portfolio_items` |
-| Review Queue | `apps/web` | None | reads/writes `review_actions` |
-| Analytics | `apps/web` | None | reads `analytics_entries` |
+| Module          | Package                             | External dependencies | Owned tables                  |
+| --------------- | ----------------------------------- | --------------------- | ----------------------------- |
+| Job Monitoring  | `apps/worker` + `packages/ai` (MCP) | Upwork MCP            | `jobs`                        |
+| Hard Filters    | `packages/core`                     | None                  | writes to `jobs.status`       |
+| AI Scoring      | `packages/ai`                       | AI model provider     | `job_scores`                  |
+| Draft Engine    | `packages/ai`                       | AI model provider     | `drafts`                      |
+| Portfolio Match | `packages/core`                     | None                  | reads `portfolio_items`       |
+| Review Queue    | `apps/web`                          | None                  | reads/writes `review_actions` |
+| Analytics       | `apps/web`                          | None                  | reads `analytics_entries`     |
 
 **Rule: A module never reads or writes another module's owned tables directly.
 All cross-module reads go through typed interfaces in `packages/core`.**
@@ -140,11 +143,11 @@ All cross-module reads go through typed interfaces in `packages/core`.**
 All feature flags live in `packages/config/src/feature-flags.ts` and the `settings` DB table.
 New features ship with their flag set to `false`. Flag is enabled only after tests pass.
 
-| Flag | Default | Enables |
-|---|---|---|
-| `ENABLE_AI_SCORING` | `true` | AI scoring of filtered jobs |
-| `ENABLE_DRAFT_ENGINE` | `true` | Auto-drafting of APPLY/APPLY_PLUS_BOOST jobs |
-| `ENABLE_ANALYTICS` | `true` | Analytics module |
+| Flag                  | Default | Enables                                      |
+| --------------------- | ------- | -------------------------------------------- |
+| `ENABLE_AI_SCORING`   | `true`  | AI scoring of filtered jobs                  |
+| `ENABLE_DRAFT_ENGINE` | `true`  | Auto-drafting of APPLY/APPLY_PLUS_BOOST jobs |
+| `ENABLE_ANALYTICS`    | `true`  | Analytics module                             |
 
 ---
 

@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { jobId, connectsSpent, clientViewed, clientReplied, isSubmitted, notes } = parseResult.data;
+    const { jobId, connectsSpent, clientViewed, clientReplied, isSubmitted, notes } =
+      parseResult.data;
 
     const job = await prisma.job.findUnique({
       where: { id: jobId },

@@ -56,7 +56,10 @@ export default function AnalyticsPage() {
       setSubmittedJobs(data.submittedJobs || []);
 
       // Initialize form inputs
-      const initial: Record<string, { connects: number; viewed: boolean; replied: boolean; notes: string }> = {};
+      const initial: Record<
+        string,
+        { connects: number; viewed: boolean; replied: boolean; notes: string }
+      > = {};
       for (const j of data.submittedJobs || []) {
         initial[j.id] = {
           connects: j.analyticsEntry?.connectsSpent ?? 0,
@@ -117,8 +120,8 @@ export default function AnalyticsPage() {
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Basic Analytics (Module 7)</h2>
         <p className="text-sm text-slate-600 mt-1">
-          Honest metrics tracking. View and reply rates are calculated ONLY from data you enter manually.
-          The app itself spends zero Connects.
+          Honest metrics tracking. View and reply rates are calculated ONLY from data you enter
+          manually. The app itself spends zero Connects.
         </p>
       </div>
 
@@ -133,36 +136,54 @@ export default function AnalyticsPage() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Found</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Found
+              </span>
               <p className="text-2xl font-bold text-slate-900 mt-1">{summary.totalJobs}</p>
             </div>
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm text-center">
-              <span className="text-[11px] font-bold text-red-500 uppercase tracking-wider">Filtered</span>
+              <span className="text-[11px] font-bold text-red-500 uppercase tracking-wider">
+                Filtered
+              </span>
               <p className="text-2xl font-bold text-red-700 mt-1">{summary.filteredOutCount}</p>
             </div>
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm text-center">
-              <span className="text-[11px] font-bold text-purple-600 uppercase tracking-wider">Scored</span>
+              <span className="text-[11px] font-bold text-purple-600 uppercase tracking-wider">
+                Scored
+              </span>
               <p className="text-2xl font-bold text-purple-900 mt-1">{summary.scoredCount}</p>
             </div>
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm text-center">
-              <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Drafted</span>
+              <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">
+                Drafted
+              </span>
               <p className="text-2xl font-bold text-amber-900 mt-1">{summary.draftedCount}</p>
             </div>
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm text-center">
-              <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Approved</span>
+              <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
+                Approved
+              </span>
               <p className="text-2xl font-bold text-emerald-900 mt-1">{summary.approvedCount}</p>
             </div>
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm text-center">
-              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Submitted</span>
-              <p className="text-2xl font-bold text-blue-900 mt-1">{summary.submittedManuallyCount}</p>
+              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
+                Submitted
+              </span>
+              <p className="text-2xl font-bold text-blue-900 mt-1">
+                {summary.submittedManuallyCount}
+              </p>
             </div>
           </div>
 
           {/* Key Rates Card */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Client View Rate</p>
-              <p className="text-3xl font-extrabold text-slate-900 mt-2">{summary.viewRateDisplay}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Client View Rate
+              </p>
+              <p className="text-3xl font-extrabold text-slate-900 mt-2">
+                {summary.viewRateDisplay}
+              </p>
               <span className="text-xs text-slate-400 mt-1 block">
                 {summary.totalWithViewTracked > 0
                   ? `${summary.viewCount} viewed of ${summary.totalWithViewTracked} tracked`
@@ -171,8 +192,12 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Client Reply Rate</p>
-              <p className="text-3xl font-extrabold text-slate-900 mt-2">{summary.replyRateDisplay}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Client Reply Rate
+              </p>
+              <p className="text-3xl font-extrabold text-slate-900 mt-2">
+                {summary.replyRateDisplay}
+              </p>
               <span className="text-xs text-slate-400 mt-1 block">
                 {summary.totalWithReplyTracked > 0
                   ? `${summary.replyCount} replied of ${summary.totalWithReplyTracked} tracked`
@@ -181,13 +206,21 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Connects Spent (Farid)</p>
-              <p className="text-3xl font-extrabold text-slate-900 mt-2">{summary.connectsSpentTotal}</p>
-              <span className="text-xs text-slate-400 mt-1 block">Sum of your manual submissions</span>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Connects Spent (Farid)
+              </p>
+              <p className="text-3xl font-extrabold text-slate-900 mt-2">
+                {summary.connectsSpentTotal}
+              </p>
+              <span className="text-xs text-slate-400 mt-1 block">
+                Sum of your manual submissions
+              </span>
             </div>
 
             <div className="bg-emerald-50 p-5 rounded-lg border border-emerald-200 shadow-sm">
-              <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Connects Spent (App)</p>
+              <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
+                Connects Spent (App)
+              </p>
               <p className="text-3xl font-extrabold text-emerald-950 mt-2">0</p>
               <span className="text-xs text-emerald-700 mt-1 block font-medium">
                 Guaranteed by Safe Model ban
@@ -202,8 +235,8 @@ export default function AnalyticsPage() {
         <div>
           <h3 className="text-base font-bold text-slate-900">Manual Submission Tracker</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            After submitting proposals manually on Upwork, record your Connects spent and whether the client viewed or
-            replied below.
+            After submitting proposals manually on Upwork, record your Connects spent and whether
+            the client viewed or replied below.
           </p>
         </div>
 
@@ -243,7 +276,9 @@ export default function AnalyticsPage() {
                   return (
                     <tr key={job.id} className="hover:bg-slate-50/50">
                       <td className="px-3 py-3 max-w-xs">
-                        <p className="font-semibold text-slate-900 truncate">{job.title || 'Untitled'}</p>
+                        <p className="font-semibold text-slate-900 truncate">
+                          {job.title || 'Untitled'}
+                        </p>
                         <p className="text-slate-400 text-[10px]">ID: {job.upworkJobId}</p>
                       </td>
 

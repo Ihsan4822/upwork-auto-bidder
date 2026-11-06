@@ -5,7 +5,9 @@ import React, { useState, useEffect } from 'react';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'SENT'>('IDLE');
-  const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -73,7 +75,8 @@ export default function LoginPage() {
             Sign in to Upwork Proposal Assistant
           </h2>
           <p className="mt-2 text-xs text-slate-500">
-            Passwordless magic link login. Enter your authorized email to receive a secure sign-in link.
+            Passwordless magic link login. Enter your authorized email to receive a secure sign-in
+            link.
           </p>
         </div>
 
@@ -92,7 +95,8 @@ export default function LoginPage() {
         {status === 'SENT' ? (
           <div className="text-center space-y-4">
             <p className="text-xs text-slate-600 leading-relaxed">
-              Check your inbox. If your email is on the authorized allowlist, you will find your single-use sign-in link.
+              Check your inbox. If your email is on the authorized allowlist, you will find your
+              single-use sign-in link.
             </p>
             <button
               type="button"
@@ -109,7 +113,10 @@ export default function LoginPage() {
         ) : (
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="email-address" className="block text-xs font-semibold uppercase text-slate-700 tracking-wider">
+              <label
+                htmlFor="email-address"
+                className="block text-xs font-semibold uppercase text-slate-700 tracking-wider"
+              >
                 Email address
               </label>
               <input
