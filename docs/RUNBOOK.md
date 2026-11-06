@@ -52,7 +52,7 @@ Every variable is listed in `.env.example`. Fill in `.env` only. Never commit `.
 | `UPWORK_AUTH_URL`            | Upwork OAuth authorization endpoint (`https://www.upwork.com/ab/account-security/oauth2/authorize`) |
 | `UPWORK_TOKEN_URL`           | Upwork OAuth token exchange endpoint (`https://www.upwork.com/api/v3/oauth2/token`)                 |
 | `OAUTH_TOKEN_ENCRYPTION_KEY` | 32-byte hex key (64 hex chars) for encrypting OAuth tokens with AES-256-GCM                         |
-| `APP_URL`                    | Full URL of the web app (e.g., `http://localhost:3000`)                                             |
+| `APP_URL`                    | Full URL of the web app (e.g., http://localhost:3000). WARNING: APP_URL must be a public HTTPS URL for live Upwork authorize, because Upwork's server must fetch APP_URL/api/auth/upwork/client-metadata.json. http://localhost:3000 will fail live authorize. |
 
 ---
 

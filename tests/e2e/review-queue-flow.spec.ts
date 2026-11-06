@@ -93,7 +93,16 @@ const fixtureJobs = [
 ];
 
 test.describe('Review Queue Human Flow (Section D3)', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    // Provide an active session cookie so middleware grants page access
+    await context.addCookies([
+      {
+        name: 'app_session',
+        value: 'mock_session_token_for_playwright_e2e_testing_32chars',
+        domain: 'localhost',
+        path: '/',
+      },
+    ]);
     // Intercept queue API requests to provide seeded fixture reliably
     await page.route('**/api/queue/jobs?status=*', async (route) => {
       const url = new URL(route.request().url());
@@ -115,7 +124,7 @@ test.describe('Review Queue Human Flow (Section D3)', () => {
       });
     });
 
-    await page.route('**/api/queue/jobs/*', async (route) => {
+    await page.route('**/api/queue/jobs/**', async (route) => {
       const url = route.request().url();
       if (url.includes('/action')) {
         const postData = route.request().postDataJSON() || {};
