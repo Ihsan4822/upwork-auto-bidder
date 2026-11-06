@@ -33,9 +33,12 @@ pnpm install
 
 # 3. Copy env file and fill in your values
 cp .env.example .env
-# Open .env and fill in DATABASE_URL, AI_API_KEY, OAUTH_TOKEN_ENCRYPTION_KEY,
-# and your Upwork developer credentials (UPWORK_CLIENT_ID, UPWORK_CLIENT_SECRET).
-# See docs/RUNBOOK.md for where to get each value.
+# Open .env and configure:
+# - DATABASE_URL (PostgreSQL connection string)
+# - OAUTH_TOKEN_ENCRYPTION_KEY (64 hex characters)
+# - LOGIN_ALLOWED_EMAILS (e.g. your_email@example.com)
+# - MAGIC_LINK_DEV_LOG=true (for localhost development login link in console) or RESEND_API_KEY
+# See docs/RUNBOOK.md for full variable details.
 
 # 4. Run database migrations
 pnpm db:migrate
@@ -47,7 +50,8 @@ pnpm db:seed
 pnpm dev
 
 # 7. Open http://localhost:3000
-# Navigate to "Upwork Connection" and authorize read-only OAuth 2.1 access.
+# Enter your allowlisted email on /login, copy the verification link from your console log (or email),
+# open /queue, then navigate to "Upwork Connection" to link Upwork.
 ```
 
 **Full setup help:** see [`docs/RUNBOOK.md`](docs/RUNBOOK.md)

@@ -1,5 +1,5 @@
 /**
- * env.ts — Validates all required environment variables at startup.
+ * env.ts - Validates all required environment variables at startup.
  *
  * WHY: Zod validation of env vars catches missing config immediately on boot,
  * not after a user action triggers the broken code path. (Section 7 of brief.)
@@ -22,6 +22,24 @@ const envSchema = z.object({
     .length(64, 'OAUTH_TOKEN_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)'),
   APP_URL: z.string().url('APP_URL must be a full URL including protocol'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // Task A: Login & Session Environment Variables
+  LOGIN_ALLOWED_EMAILS: z
+    .string()
+    .default('farid@example.com')
+    .transform((val) =>
+      val
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('onboarding@resend.dev'),
+  MAGIC_LINK_DEV_LOG: z
+    .string()
+    .optional()
+    .transform((val) => val === 'true'),
+  MAGIC_LINK_TTL_MINUTES: z.coerce.number().int().positive().default(15),
+  SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
 });
 
 /**
@@ -33,7 +51,7 @@ const envSchema = z.object({
 export function parseEnv() {
   const result = envSchema.safeParse(process.env);
   if (!result.success) {
-    console.error('❌ Invalid environment variables:');
+    console.error('Invalid environment variables:');
     console.error(result.error.flatten().fieldErrors);
     process.exit(1);
   }

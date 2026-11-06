@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Link from 'next/link';
+import HeaderAuth from '../components/HeaderAuth';
 
 export const metadata: Metadata = {
-  title: 'Upwork Auto Bidder — Assistant',
+  title: 'Upwork Auto Bidder - Assistant',
   description: 'Internal job finder, scorer and proposal draft assistant for Amazon design services.',
 };
 
@@ -25,36 +26,40 @@ export default function RootLayout({
                 <h1 className="text-base font-semibold text-slate-900 leading-tight">
                   Upwork Proposal Assistant
                 </h1>
-                <p className="text-xs text-slate-500">Internal MVP · Human-Submit Only</p>
+                <p className="text-xs text-slate-500">Internal MVP . Human-Submit Only</p>
               </div>
             </div>
 
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
-                Dashboard
-              </Link>
-              <Link href="/jobs/scored" className="text-slate-600 hover:text-slate-900 transition-colors">
-                Scored Jobs
-              </Link>
-              <Link href="/jobs/filtered" className="text-slate-600 hover:text-slate-900 transition-colors">
-                Filtered Out
-              </Link>
-              <Link href="/queue" className="text-slate-600 hover:text-slate-900 transition-colors">
-                Review Queue
-              </Link>
-              <Link href="/portfolio" className="text-slate-600 hover:text-slate-900 transition-colors">
-                Portfolio
-              </Link>
-              <Link href="/analytics" className="text-slate-600 hover:text-slate-900 transition-colors">
-                Analytics
-              </Link>
-              <Link
-                href="/settings/connection"
-                className="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-md hover:bg-emerald-100 transition-colors"
-              >
-                Upwork Connection
-              </Link>
-            </nav>
+            <div className="flex items-center space-x-6">
+              <nav className="flex items-center space-x-6 text-sm font-medium">
+                <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
+                  Dashboard
+                </Link>
+                <Link href="/jobs/scored" className="text-slate-600 hover:text-slate-900 transition-colors">
+                  Scored Jobs
+                </Link>
+                <Link href="/jobs/filtered" className="text-slate-600 hover:text-slate-900 transition-colors">
+                  Filtered Out
+                </Link>
+                <Link href="/queue" className="text-slate-600 hover:text-slate-900 transition-colors">
+                  Review Queue
+                </Link>
+                <Link href="/portfolio" className="text-slate-600 hover:text-slate-900 transition-colors">
+                  Portfolio
+                </Link>
+                <Link href="/analytics" className="text-slate-600 hover:text-slate-900 transition-colors">
+                  Analytics
+                </Link>
+                <Link
+                  href="/settings/connection"
+                  className="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-md hover:bg-emerald-100 transition-colors"
+                >
+                  Upwork Connection
+                </Link>
+              </nav>
+
+              <HeaderAuth />
+            </div>
           </div>
         </header>
 

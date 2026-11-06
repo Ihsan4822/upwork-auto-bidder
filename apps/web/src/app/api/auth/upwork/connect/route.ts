@@ -1,7 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateOAuthState, ALLOWED_OAUTH_SCOPES } from '@upwork-bidder/core';
+import { requireSession } from '@/lib/auth';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
   try {
     const clientId = process.env.UPWORK_CLIENT_ID;
     if (!clientId) {

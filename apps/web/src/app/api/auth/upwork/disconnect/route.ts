@@ -1,12 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
+import { requireSession } from '@/lib/auth';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
+  const { user } = sessionResult;
+
   try {
-    const profile = await prisma.profile.findFirst();
+    const profile = await prisma.profile.findFirst({
+      where: { userId: user.id },
+    });
 
     if (!profile) {
-      return NextResponse.json({ success: true, message: 'No profile found' });
+      return NextResponse.json({ success: true, message: 'No profile found for user' });
     }
 
     // SECTION 2, RULE 7: "disconnecting must delete the stored token at once"
@@ -29,7 +39,7 @@ export async function POST() {
         profileId: profile.id,
         jobId: null,
         action: 'DISCONNECTED_UPWORK',
-        actorId: profile.userId,
+        actorId: user.id,
         note: 'OAuth token deleted and Upwork connection terminated by user action.',
       },
     });

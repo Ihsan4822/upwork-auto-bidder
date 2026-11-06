@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 import { getNextDraftVersion, countWords, isValidTransition, QueueState } from '@upwork-bidder/core';
 import { z } from 'zod';
+import { requireSession } from '@/lib/auth';
 
 const ActionSchema = z.object({
   action: z.enum(['SAVE_DRAFT_VERSION', 'APPROVE', 'SKIP', 'MARK_SUBMITTED']),
@@ -14,6 +15,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
+  const { user } = sessionResult;
   const { jobId } = await params;
 
   let body;
@@ -89,7 +96,7 @@ export async function POST(
           profileId: job.profileId,
           jobId: job.id,
           action: 'EDITED_DRAFT',
-          actorId: 'FARID_MALIK',
+          actorId: user.id,
           note: note || `Created draft version ${nextVersion}`,
           metadata: { newVersion: nextVersion, wordCount },
         },
@@ -116,7 +123,7 @@ export async function POST(
           profileId: job.profileId,
           jobId: job.id,
           action: 'APPROVED',
-          actorId: 'FARID_MALIK',
+          actorId: user.id,
           note: note || 'Approved proposal for manual submission on Upwork',
         },
       });
@@ -142,7 +149,7 @@ export async function POST(
           profileId: job.profileId,
           jobId: job.id,
           action: 'SKIPPED',
-          actorId: 'FARID_MALIK',
+          actorId: user.id,
           note: note || 'Skipped by human reviewer',
         },
       });
@@ -180,8 +187,8 @@ export async function POST(
           profileId: job.profileId,
           jobId: job.id,
           action: 'MARKED_SUBMITTED',
-          actorId: 'FARID_MALIK',
-          note: note || 'Manually submitted on Upwork by Farid Malik',
+          actorId: user.id,
+          note: note || 'Manually submitted on Upwork',
         },
       });
 

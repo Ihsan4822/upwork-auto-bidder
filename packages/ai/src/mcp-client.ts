@@ -95,7 +95,9 @@ export class UpworkMcpClient {
         throw err;
       }
       // Re-throw or wrap with context
-      throw new Error(`Failed to execute MCP search_jobs: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(`Failed to execute MCP search_jobs: ${err instanceof Error ? err.message : String(err)}`, {
+        cause: err,
+      });
     }
   }
 

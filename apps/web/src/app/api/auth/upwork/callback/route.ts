@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 import { prepareTokenForStorage, validateGrantedScopes } from '@upwork-bidder/core';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -14,6 +15,12 @@ export async function GET(request: NextRequest) {
   const clientSecret = process.env.UPWORK_CLIENT_SECRET;
   const tokenUrl = process.env.UPWORK_TOKEN_URL || 'https://www.upwork.com/api/v3/oauth2/token';
   const redirectUri = `${appUrl}/api/auth/upwork/callback`;
+
+  // A6: Enforce active session on callback
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.redirect(`${appUrl}/login?error=session_expired`);
+  }
 
   if (error) {
     return NextResponse.redirect(
@@ -85,30 +92,29 @@ export async function GET(request: NextRequest) {
 
     // 3. Extract and strictly validate returned scopes
     const rawScope = tokenData.scope || '';
-    const returnedScopes = typeof rawScope === 'string'
-      ? rawScope.split(/[\s,]+/).filter(Boolean)
-      : Array.isArray(rawScope)
-      ? rawScope
-      : [];
+    const returnedScopes =
+      typeof rawScope === 'string'
+        ? rawScope.split(/[\s,]+/).filter(Boolean)
+        : Array.isArray(rawScope)
+        ? rawScope
+        : [];
 
     const scopeValidation = validateGrantedScopes(returnedScopes);
     if (!scopeValidation.valid) {
       throw new Error(`Scope violation (Section 3, Rule 2): ${scopeValidation.reason}`);
     }
 
-    // 4. Find or initialize profile
-    let profile = await prisma.profile.findFirst();
+    // 4. Find or initialize profile from the signed-in session user (A7)
+    let profile = await prisma.profile.findFirst({
+      where: { userId: user.id },
+    });
+
     if (!profile) {
-      const user = await prisma.user.upsert({
-        where: { email: 'ihsan4822@gmail.com' },
-        update: {},
-        create: { email: 'ihsan4822@gmail.com' },
-      });
       profile = await prisma.profile.create({
         data: {
           userId: user.id,
-          upworkProfileId: 'farid_malik_profile',
-          displayName: 'Farid Malik',
+          upworkProfileId: `profile_${user.id}`,
+          displayName: user.email.split('@')[0],
           niches: [
             'Amazon Listing Images',
             'A+ Content / EBC',

@@ -1,8 +1,9 @@
 /**
- * index.ts — Public exports for packages/core
+ * index.ts - Public exports for packages/core
  */
 
 export * from './analytics-service';
+export * from './auth';
 export * from './connection-service';
 export * from './crypto';
 export * from './filters';

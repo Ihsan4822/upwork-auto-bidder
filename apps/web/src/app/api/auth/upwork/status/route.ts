@@ -1,14 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
+import { requireSession } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
+  const { user } = sessionResult;
+
   const registeredAppName =
     process.env.UPWORK_REGISTERED_APP_NAME ||
-    (process.env.UPWORK_CLIENT_ID ? 'Upwork Proposal Assistant (Farid Malik)' : 'Not Registered (Pending Upwork Developer Key)');
+    (process.env.UPWORK_CLIENT_ID ? 'Upwork Proposal Assistant' : 'Not Registered (Pending Upwork Developer Key)');
 
   const fallback = {
     status: 'DISCONNECTED',
-    displayName: 'Farid Malik',
+    displayName: user.email.split('@')[0],
     registeredAppName,
     scopesGranted: [],
     isAppConfigured: Boolean(process.env.UPWORK_CLIENT_ID),
@@ -17,6 +25,7 @@ export async function GET() {
   try {
     // 1.5s fail-fast timeout so the UI never hangs if PostgreSQL is offline
     const queryPromise = prisma.profile.findFirst({
+      where: { userId: user.id },
       include: {
         oauthTokens: {
           where: { revokedAt: null },

@@ -1,8 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 import { calculateAnalyticsSummary } from '@upwork-bidder/core';
+import { requireSession } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
   try {
     const totalJobs = await prisma.job.count();
     const filteredOutCount = await prisma.job.count({ where: { status: 'FILTERED_OUT' } });
