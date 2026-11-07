@@ -12,10 +12,18 @@
  *     "steps": [ ... ],
  *     "on_error": "continue"
  *   }
+ * - Standalone Decide Request Shape:
+ *   {
+ *     "state": "<raw job text as a string>",
+ *     "questions": {
+ *       "action": { "type": "choice", "options": ["APPLY", "APPLY_PLUS_BOOST", "SKIP"], "criteria": { ... } },
+ *       "budget_meets_floor": { "type": "boolean", "criteria": { "true": "...", "false": "..." } }
+ *     }
+ *   }
  * - Constraints:
- *   - Do NOT send top-level "state" key
- *   - Do NOT send steps with "step" key, use "endpoint" and "body" per step
- *   - Do NOT send "threshold" in Decide body (applied client-side from probability)
+ *   - Pipeline: Do NOT send top-level "state" key; use "endpoint" and "body" per step
+ *   - Decide: "state" is a string; "questions" is an object map
+ *   - Do NOT send "threshold" in Decide or Pipeline body (applied client-side from probability)
  *   - Do NOT send "model" field anywhere
  */
 
@@ -234,17 +242,37 @@ export interface ClockedPipelineResponse {
 
 export type ClockedDecisionLabel = 'APPLY' | 'APPLY_PLUS_BOOST' | 'SKIP';
 
-export interface ClockedDecideQuestion {
-  id: string;
-  question: string;
-  type: 'boolean' | 'score' | 'category' | 'text';
-  criteria: string;
+export interface ClockedDecideQuestionChoice {
+  type: 'choice';
+  options: string[] | readonly string[];
+  criteria: Record<string, string>;
 }
 
+export interface ClockedDecideQuestionBoolean {
+  type: 'boolean';
+  criteria: {
+    true: string;
+    false: string;
+  };
+}
+
+export interface ClockedDecideQuestionGeneric {
+  type: string;
+  options?: string[] | readonly string[];
+  criteria?: Record<string, string> | string;
+  [key: string]: unknown;
+}
+
+export type ClockedDecideQuestionDef =
+  | ClockedDecideQuestionChoice
+  | ClockedDecideQuestionBoolean
+  | ClockedDecideQuestionGeneric;
+
+export type ClockedDecideQuestions = Record<string, ClockedDecideQuestionDef>;
+
 export interface ClockedDecideRequest {
-  state: Record<string, unknown>;
-  questions: ClockedDecideQuestion[];
-  threshold?: number;
+  state: string;
+  questions: ClockedDecideQuestions;
 }
 
 export interface ClockedDecideResponse {
@@ -295,14 +323,17 @@ export interface ClockedVerificationResult {
 
 export const ClockedDecisionLabelSchema = z.enum(['APPLY', 'APPLY_PLUS_BOOST', 'SKIP']);
 
-export const ClockedDecideResponseSchema = z.object({
-  decision: ClockedDecisionLabelSchema,
-  confidence: z.number().min(0).max(1),
-  score: z.number().min(0).max(100),
-  reasons: z.array(z.string()).min(1),
-  answers: z.record(z.unknown()).optional(),
-  credits_used: z.number().nonnegative(),
-});
+export const ClockedDecideResponseSchema = z
+  .object({
+    decision: ClockedDecisionLabelSchema.optional(),
+    confidence: z.number().min(0).max(1).optional(),
+    score: z.number().min(0).max(100).optional(),
+    reasons: z.array(z.string()).optional(),
+    answers: z.record(z.unknown()).optional(),
+    credits_used: z.number().nonnegative().optional(),
+    usage: z.object({ total_credits: z.number().nonnegative() }).optional(),
+  })
+  .passthrough();
 
 export const ClockedStepResponseSchema = z.object({
   name: z.string(),

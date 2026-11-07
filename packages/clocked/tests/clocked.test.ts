@@ -27,6 +27,7 @@ import {
   createFallbackGeminiVerification,
   ClockedJobInput,
   ClockedPipelineResponse,
+  ClockedDecideRequest,
 } from '../src';
 
 // -- 5 Sample Job Fixtures ----------------------------------------------------
@@ -218,6 +219,80 @@ describe('Clocked Integration - packages/clocked (Verified Shape 7 Nov 2026)', (
         /Clocked API violation: "model" field is strictly forbidden/i,
       );
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('captures a decide() request with a mock fetch and asserts the body has only state and questions, questions is an object map, and there is no threshold field and no model field', async () => {
+      let capturedBody: Record<string, unknown> = {};
+
+      const mockFetch = vi.fn().mockImplementation(async (_url, init) => {
+        capturedBody = JSON.parse(init.body as string) as Record<string, unknown>;
+        return new Response(
+          JSON.stringify({
+            answers: {
+              action: { value: 'APPLY', probability: 0.88 },
+              budget_meets_floor: { value: true },
+            },
+            credits_used: 1,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      });
+
+      const client = new ClockedClient({
+        apiKey: 'test-key',
+        baseUrl: DEFAULT_CLOCKED_BASE_URL,
+        fetchFn: mockFetch as unknown as typeof fetch,
+      });
+
+      const request: ClockedDecideRequest = {
+        state: 'Raw job text description here',
+        questions: {
+          action: {
+            type: 'choice',
+            options: ['APPLY', 'APPLY_PLUS_BOOST', 'SKIP'],
+            criteria: {
+              APPLY:
+                'Budget meets the 15 dollar per hour floor, niche is Amazon design, client history is credible, deadline is realistic.',
+              APPLY_PLUS_BOOST:
+                'All APPLY criteria pass and the job is a strong match, high value, low competition.',
+              SKIP: 'Any APPLY criterion fails.',
+            },
+          },
+          budget_meets_floor: {
+            type: 'boolean',
+            criteria: {
+              true: 'Effective hourly rate is at or above 15 dollars per hour.',
+              false: 'Effective hourly rate is below 15 dollars per hour.',
+            },
+          },
+        },
+      };
+
+      const result = await client.decide(request);
+
+      // Asserts the body has only state and questions
+      const bodyKeys = Object.keys(capturedBody).sort();
+      expect(bodyKeys).toEqual(['questions', 'state']);
+
+      // Asserts state is a string
+      expect(typeof capturedBody.state).toBe('string');
+      expect(capturedBody.state).toBe('Raw job text description here');
+
+      // Asserts questions is an object map (not an array)
+      expect(typeof capturedBody.questions).toBe('object');
+      expect(capturedBody.questions).not.toBeNull();
+      expect(Array.isArray(capturedBody.questions)).toBe(false);
+      expect(capturedBody.questions).toHaveProperty('action');
+      expect(capturedBody.questions).toHaveProperty('budget_meets_floor');
+
+      // Asserts there is no threshold field and no model field
+      expect(capturedBody).not.toHaveProperty('threshold');
+      expect(capturedBody).not.toHaveProperty('model');
+
+      // Assert result returned properly
+      expect(result.decision).toBe('APPLY');
+      expect(result.confidence).toBe(0.88);
+      expect(result.credits_used).toBe(1);
     });
 
     it('handles 429 by backing off and retrying once with identical Idempotency-Key and payload', async () => {

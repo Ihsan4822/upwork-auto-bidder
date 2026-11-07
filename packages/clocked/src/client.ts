@@ -8,22 +8,31 @@
  * - Idempotency: Idempotency-Key header with a fresh UUID per logical request
  * - Concurrency: Sequential queue (1 in flight request at a time)
  * - Rate Limiting: 429 backoff and retry once with same Idempotency-Key
- * - Request Shape:
+ * - Pipeline Request Shape:
  *   {
  *     "text": "<raw job text>",
  *     "steps": [ ... ],
  *     "on_error": "continue"
  *   }
+ * - Standalone Decide Request Shape:
+ *   {
+ *     "state": "<raw job text as a string>",
+ *     "questions": {
+ *       "action": { "type": "choice", "options": ["APPLY", "APPLY_PLUS_BOOST", "SKIP"], "criteria": { ... } },
+ *       "budget_meets_floor": { "type": "boolean", "criteria": { "true": "...", "false": "..." } }
+ *     }
+ *   }
  * - Constraints:
- *   - No top-level "state" key
- *   - No "step" key in steps; uses "endpoint" and "body"
- *   - No "threshold" in Decide body
+ *   - Pipeline: No top-level "state" key, steps use "endpoint" and "body"
+ *   - Decide: "state" is raw job text string, "questions" is an object map
+ *   - No "threshold" in Decide or Pipeline body (0.75 enforced in client code)
  *   - Strictly no "model" field anywhere
  */
 
 import crypto from 'crypto';
 import {
   ClockedClientConfig,
+  ClockedDecisionLabel,
   ClockedDecideRequest,
   ClockedDecideResponse,
   ClockedDecideResponseSchema,
@@ -279,7 +288,9 @@ export class ClockedClient {
   }
 
   /**
-   * Execute a POST /clocked/decide call.
+   * Execute a POST /clocked/decide call with verified shape:
+   * { "state": "<string>", "questions": { ... } }
+   * Note: Threshold (0.75) is enforced client-side from returned probability and never sent in payload.
    */
   async decide(
     request: ClockedDecideRequest,
@@ -291,10 +302,11 @@ export class ClockedClient {
 
     this.assertNoModelField(request);
 
-    const payload: ClockedDecideRequest = {
+    // Build the verified payload: state as string, questions as object map
+    // Strictly NO "threshold" field and NO "model" field
+    const payload = {
       state: request.state,
       questions: request.questions,
-      threshold: request.threshold ?? this.threshold,
     };
 
     const idempotencyKey = customIdempotencyKey || crypto.randomUUID();
@@ -309,8 +321,54 @@ export class ClockedClient {
         throw new Error(`Clocked decide failed with HTTP ${res.status}: ${errorText}`);
       }
 
-      const json = (await res.json()) as unknown;
-      return ClockedDecideResponseSchema.parse(json);
+      const json = (await res.json()) as Record<string, unknown>;
+      const parsed = ClockedDecideResponseSchema.parse(json);
+
+      const answers = (parsed.answers || {}) as Record<string, {
+        value?: string;
+        choice?: string;
+        probability?: number;
+        confidence?: number;
+      }>;
+      const actionAnswer = answers.action;
+
+      const rawDecision: ClockedDecisionLabel =
+        parsed.decision ||
+        (actionAnswer?.value as ClockedDecisionLabel) ||
+        (actionAnswer?.choice as ClockedDecisionLabel) ||
+        'SKIP';
+
+      const probability: number =
+        typeof parsed.confidence === 'number'
+          ? parsed.confidence
+          : typeof actionAnswer?.probability === 'number'
+            ? actionAnswer.probability
+            : typeof actionAnswer?.confidence === 'number'
+              ? actionAnswer.confidence
+              : 0;
+
+      // Apply the 0.75 threshold in our own code after reading the Decide probability
+      const decision: ClockedDecisionLabel =
+        probability < this.threshold && (rawDecision === 'APPLY' || rawDecision === 'APPLY_PLUS_BOOST')
+          ? 'SKIP'
+          : rawDecision;
+
+      const creditsUsed =
+        parsed.credits_used ?? parsed.usage?.total_credits ?? 1;
+
+      return {
+        decision,
+        confidence: probability,
+        score: parsed.score ?? Math.round(probability * 100),
+        reasons:
+          parsed.reasons && parsed.reasons.length > 0
+            ? parsed.reasons
+            : probability < this.threshold && rawDecision !== 'SKIP'
+              ? [`Clocked Decide: Confidence (${probability.toFixed(2)}) is below threshold ${this.threshold}.`]
+              : [],
+        answers: parsed.answers,
+        credits_used: creditsUsed,
+      };
     });
   }
 
