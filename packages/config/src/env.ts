@@ -43,6 +43,14 @@ const envSchema = z.object({
   // Clocked Integration (Server-side only)
   CLOCKED_API_KEY: z.string().optional(),
   CLOCKED_BASE_URL: z.string().url().default('https://clocked.rezolve.ai/clocked'),
+  CLOCKED_ENABLED: z
+    .preprocess((val) => {
+      if (typeof val === 'boolean') return val;
+      if (typeof val === 'string') return val.toLowerCase() === 'true' || val === '1';
+      return false;
+    }, z.boolean())
+    .optional()
+    .default(false),
 });
 
 /**
