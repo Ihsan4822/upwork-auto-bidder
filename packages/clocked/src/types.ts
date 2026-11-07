@@ -6,7 +6,17 @@
  * - Endpoints: POST /clocked/decide and POST /clocked/pipeline
  * - Auth Header: Authorization: Bearer CLOCKED_API_KEY
  * - Idempotency: Idempotency-Key header with fresh UUID per logical request
- * - Rule: No model field in any request.
+ * - Pipeline Request Shape:
+ *   {
+ *     "text": "<raw job text>",
+ *     "steps": [ ... ],
+ *     "on_error": "continue"
+ *   }
+ * - Constraints:
+ *   - Do NOT send top-level "state" key
+ *   - Do NOT send steps with "step" key, use "endpoint" and "body" per step
+ *   - Do NOT send "threshold" in Decide body (applied client-side from probability)
+ *   - Do NOT send "model" field anywhere
  */
 
 import { z } from 'zod';
@@ -18,20 +28,29 @@ export interface ClockedClientConfig {
   baseUrl?: string;
   threshold?: number;
   fetchFn?: typeof fetch;
+  retryBackoffMs?: number;
 }
 
 // -- Guard & Protection Types -----------------------------------------------
 
 export type ClockedGuardSeverity = 'none' | 'low' | 'medium' | 'high' | 'critical';
 
-export interface ClockedGuardResult {
-  injection_detected: boolean;
-  severity: ClockedGuardSeverity;
+export interface ClockedGuardOutput {
+  score?: number;
+  is_injection?: boolean;
+  injection_detected?: boolean;
+  severity?: ClockedGuardSeverity;
   details?: string;
 }
 
-export interface ClockedProtectResult {
-  pii_detected: boolean;
+export interface ClockedProtectOutput {
+  pii_detected?: boolean;
+  positions?: Array<{
+    start: number;
+    end: number;
+    type: string;
+    value?: string;
+  }>;
   entities?: Array<{
     type: string;
     text: string;
@@ -40,29 +59,178 @@ export interface ClockedProtectResult {
 
 // -- Extraction & Scorecard Types -------------------------------------------
 
-export interface ClockedExtractResult {
-  budget?: string | number | null;
-  skills?: string[];
+export interface ClockedExtractOutput {
+  budget_amount?: number | null;
+  budget_type?: string | null;
+  skills?: string[] | null;
   deadline?: string | null;
   client_spend?: number | null;
   client_hire_rate?: number | null;
   posted_date?: string | null;
-  proposals?: number | null;
+  proposal_count?: number | null;
   [key: string]: unknown;
 }
 
-export interface ClockedScorecardResult {
-  score?: number;
-  criteria_met?: Record<string, boolean>;
+export interface ClockedDecideOutput {
+  action?: {
+    choice?: ClockedDecisionLabel;
+    decision?: ClockedDecisionLabel;
+    probability?: number;
+    confidence?: number;
+    probabilities?: Record<string, number>;
+  };
+  budget_meets_floor?: {
+    result?: boolean;
+    probability?: number;
+  };
   [key: string]: unknown;
 }
 
-export interface ClockedGroundingResult {
-  grounded: boolean;
+export interface ClockedFillOutput {
+  rate_floor_pass?: boolean;
+  match_score?: number;
+  risk_flags?: string[];
+  recommended_action?: string;
+  confidence?: number;
+  reason?: string;
+  [key: string]: unknown;
+}
+
+export interface ClockedGroundingOutput {
+  grounded?: boolean;
+  claims?: Array<{
+    claim: string;
+    grounded: boolean;
+    score?: number;
+  }>;
   ungrounded_claims?: string[];
+  [key: string]: unknown;
 }
 
-// -- Decision Types ---------------------------------------------------------
+// -- Pipeline Step Definitions ----------------------------------------------
+
+export interface ClockedStepDef<
+  TEndpoint extends string,
+  TName extends string,
+  TBody extends Record<string, unknown>,
+> {
+  endpoint: TEndpoint;
+  name: TName;
+  stop?: boolean;
+  body: TBody;
+}
+
+export type ClockedStepGuard = ClockedStepDef<
+  'injection',
+  'guard',
+  { return_score: boolean; score_mode: 'strict' | 'standard' }
+>;
+
+export type ClockedStepProtect = ClockedStepDef<
+  'pii',
+  'protect',
+  { return_positions: boolean }
+>;
+
+export type ClockedStepExtract = ClockedStepDef<
+  'extract',
+  'extract',
+  {
+    fields: {
+      budget_amount: { type: 'number' };
+      budget_type: { type: 'string' };
+      skills: { type: 'array' };
+      deadline: { type: 'string' };
+      client_spend: { type: 'number' };
+      client_hire_rate: { type: 'number' };
+      posted_date: { type: 'string' };
+      proposal_count: { type: 'number' };
+    };
+  }
+>;
+
+export type ClockedStepDecide = ClockedStepDef<
+  'decide',
+  'decide',
+  {
+    questions: {
+      action: {
+        type: 'choice';
+        options: Array<'APPLY' | 'APPLY_PLUS_BOOST' | 'SKIP'>;
+        criteria: {
+          APPLY: string;
+          APPLY_PLUS_BOOST: string;
+          SKIP: string;
+        };
+      };
+      budget_meets_floor: {
+        type: 'boolean';
+        criteria: {
+          true: string;
+          false: string;
+        };
+      };
+    };
+  }
+>;
+
+export type ClockedStepFill = ClockedStepDef<
+  'fill',
+  'fill_scorecard',
+  {
+    fields: {
+      rate_floor_pass: { type: 'boolean' };
+      match_score: { type: 'number' };
+      risk_flags: { type: 'array' };
+      recommended_action: { type: 'string' };
+      confidence: { type: 'number' };
+      reason: { type: 'string' };
+    };
+  }
+>;
+
+export type ClockedStepGrounding = ClockedStepDef<
+  'grounding',
+  'verify',
+  {
+    claims: string[];
+  }
+>;
+
+export type ClockedPipelineStep =
+  | ClockedStepGuard
+  | ClockedStepProtect
+  | ClockedStepExtract
+  | ClockedStepDecide
+  | ClockedStepFill
+  | ClockedStepGrounding;
+
+export interface ClockedPipelineRequest {
+  text: string;
+  steps: ClockedPipelineStep[];
+  on_error: 'continue' | 'stop';
+}
+
+// -- Response Step Definitions ----------------------------------------------
+
+export interface ClockedStepResponse<TOutput = Record<string, unknown>> {
+  name: string;
+  endpoint: string;
+  status?: string;
+  output?: TOutput;
+  data?: TOutput;
+  result?: TOutput;
+  error?: string;
+}
+
+export interface ClockedPipelineResponse {
+  steps: Array<ClockedStepResponse<unknown>>;
+  credits_used: number;
+  status?: string;
+  error?: string;
+}
+
+// -- Standalone Decide Types (POST /clocked/decide) -------------------------
 
 export type ClockedDecisionLabel = 'APPLY' | 'APPLY_PLUS_BOOST' | 'SKIP';
 
@@ -86,69 +254,6 @@ export interface ClockedDecideResponse {
   reasons: string[];
   answers?: Record<string, unknown>;
   credits_used: number;
-}
-
-// -- Pipeline Step Definitions ----------------------------------------------
-
-export interface ClockedStepGuard {
-  step: 'guard';
-  type: 'injection';
-}
-
-export interface ClockedStepProtect {
-  step: 'protect';
-  type: 'pii';
-  mode: 'detect_only';
-}
-
-export interface ClockedStepExtract {
-  step: 'extract';
-  fields: string[];
-}
-
-export interface ClockedStepDecide {
-  step: 'decide';
-  threshold: number;
-  options: ClockedDecisionLabel[];
-  questions: ClockedDecideQuestion[];
-}
-
-export interface ClockedStepFillScorecard {
-  step: 'fill_scorecard';
-}
-
-export interface ClockedStepVerifyGrounding {
-  step: 'verify_grounding';
-}
-
-export type ClockedPipelineStep =
-  | ClockedStepGuard
-  | ClockedStepProtect
-  | ClockedStepExtract
-  | ClockedStepDecide
-  | ClockedStepFillScorecard
-  | ClockedStepVerifyGrounding;
-
-export interface ClockedPipelineRequest {
-  steps: ClockedPipelineStep[];
-  state: Record<string, unknown>;
-}
-
-export interface ClockedPipelineResponse {
-  status: 'SUCCESS' | 'FAILED';
-  guard: ClockedGuardResult;
-  protect: ClockedProtectResult;
-  extract: ClockedExtractResult;
-  decide: {
-    decision: ClockedDecisionLabel;
-    confidence: number;
-    score: number;
-    reasons: string[];
-  };
-  scorecard: ClockedScorecardResult;
-  grounding: ClockedGroundingResult;
-  credits_used: number;
-  error?: string;
 }
 
 // -- Job Input & Verification Result Types -----------------------------------
@@ -199,36 +304,19 @@ export const ClockedDecideResponseSchema = z.object({
   credits_used: z.number().nonnegative(),
 });
 
+export const ClockedStepResponseSchema = z.object({
+  name: z.string(),
+  endpoint: z.string(),
+  status: z.string().optional(),
+  output: z.unknown().optional(),
+  data: z.unknown().optional(),
+  result: z.unknown().optional(),
+  error: z.string().optional(),
+});
+
 export const ClockedPipelineResponseSchema = z.object({
-  status: z.enum(['SUCCESS', 'FAILED']),
-  guard: z.object({
-    injection_detected: z.boolean(),
-    severity: z.enum(['none', 'low', 'medium', 'high', 'critical']),
-    details: z.string().optional(),
-  }),
-  protect: z.object({
-    pii_detected: z.boolean(),
-    entities: z
-      .array(
-        z.object({
-          type: z.string(),
-          text: z.string(),
-        }),
-      )
-      .optional(),
-  }),
-  extract: z.record(z.unknown()),
-  decide: z.object({
-    decision: ClockedDecisionLabelSchema,
-    confidence: z.number().min(0).max(1),
-    score: z.number().min(0).max(100),
-    reasons: z.array(z.string()).min(1),
-  }),
-  scorecard: z.record(z.unknown()),
-  grounding: z.object({
-    grounded: z.boolean(),
-    ungrounded_claims: z.array(z.string()).optional(),
-  }),
+  steps: z.array(ClockedStepResponseSchema),
   credits_used: z.number().nonnegative(),
+  status: z.string().optional(),
   error: z.string().optional(),
 });

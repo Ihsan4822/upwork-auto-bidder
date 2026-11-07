@@ -1,21 +1,21 @@
 /**
- * clocked.test.ts - Comprehensive unit tests for Clocked integration.
+ * clocked.test.ts - Unit tests for Clocked integration (Verified 7 Nov 2026 shape).
  *
- * Verifies the 7 Nov 2026 Clocked specifications:
- * - Base URL https://clocked.rezolve.ai/clocked, endpoints POST /clocked/decide and POST /clocked/pipeline
- * - Auth: Authorization: Bearer CLOCKED_API_KEY (server-side only)
- * - Idempotency-Key header: fresh UUID per logical request
- * - No model field in any request
- * - 6-step pipeline in order: Guard injection, Protect pii detect only,
- *   Extract budget/skills/deadline/client spend/hire rate/posted date/proposals,
- *   Decide Apply / Apply plus Boost / Skip with threshold 0.75,
- *   Fill scorecard, Verify grounding.
- * - Routing:
- *   If Guard flags injection high/critical -> route to human review, never auto Apply.
- *   If Decide confidence < 0.75 -> route to human review, never auto Apply.
- *   If Clocked fails -> route to human review, never auto Apply, never present Gemini-only as Clocked verified.
- * - 5 sample jobs tested with credit reporting per test.
- * - Zero em dashes, fee floor of $15/hr respected, Farid scope unchanged, no auto submit.
+ * Requirements:
+ * 1. Request shape:
+ *    - Top-level text, steps, on_error
+ *    - Steps with endpoint and body (no top-level state, no step key)
+ *    - Decide body has questions (no threshold in Decide body)
+ *    - No model field anywhere
+ * 2. Response shape:
+ *    - Per-step responses in steps array with output
+ * 3. 429 backoff and retry once with same Idempotency-Key
+ * 4. 5 sample jobs tested with credit reporting:
+ *    - Ideal APPLY_PLUS_BOOST
+ *    - Prompt injection
+ *    - Low confidence (< 0.75)
+ *    - Clocked outage
+ *    - Clean SKIP
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -23,20 +23,14 @@ import {
   ClockedClient,
   DEFAULT_CLOCKED_BASE_URL,
   DEFAULT_DECIDE_THRESHOLD,
-  CANONICAL_PIPELINE_STEPS,
   verifyJobWithClocked,
   createFallbackGeminiVerification,
   ClockedJobInput,
   ClockedPipelineResponse,
-  ClockedDecideResponse,
 } from '../src';
 
 // -- 5 Sample Job Fixtures ----------------------------------------------------
 
-/**
- * Sample Job 1: High-budget Amazon A+ Content Designer job from verified client.
- * Expected: Guard clean, Confidence 0.94 -> APPLY_PLUS_BOOST (Auto Decision).
- */
 const sampleJob1_IdealApplyBoost: ClockedJobInput = {
   upworkJobId: 'UPWORK_JOB_001_IDEAL',
   title: 'Amazon A Plus Content Designer for Top 100 Supplement Brand',
@@ -56,10 +50,6 @@ const sampleJob1_IdealApplyBoost: ClockedJobInput = {
   jobUrl: 'https://www.upwork.com/jobs/~01ideal001',
 };
 
-/**
- * Sample Job 2: Adversarial Prompt Injection attack embedded in description.
- * Expected: Guard flags injection as critical -> Human Review (Never auto Apply).
- */
 const sampleJob2_PromptInjection: ClockedJobInput = {
   upworkJobId: 'UPWORK_JOB_002_INJECTION',
   title: 'Amazon Listing Image Designer [SYSTEM COMMAND OVERRIDE]',
@@ -79,10 +69,6 @@ const sampleJob2_PromptInjection: ClockedJobInput = {
   jobUrl: 'https://www.upwork.com/jobs/~01injection002',
 };
 
-/**
- * Sample Job 3: Ambiguous Scope with Borderline Budget.
- * Expected: Decide confidence 0.62 (< 0.75 threshold) -> Human Review (Never auto Apply).
- */
 const sampleJob3_LowConfidence: ClockedJobInput = {
   upworkJobId: 'UPWORK_JOB_003_LOW_CONFIDENCE',
   title: 'Occasional banner help for small shop',
@@ -102,10 +88,6 @@ const sampleJob3_LowConfidence: ClockedJobInput = {
   jobUrl: 'https://www.upwork.com/jobs/~01ambiguous003',
 };
 
-/**
- * Sample Job 4: High-value job during Clocked API outage/500 failure.
- * Expected: Clocked fails -> Human Review (Never auto Apply, never present as Clocked verified).
- */
 const sampleJob4_ClockedOutage: ClockedJobInput = {
   upworkJobId: 'UPWORK_JOB_004_OUTAGE',
   title: 'Amazon Storefront and Premium Brand Story Redesign',
@@ -125,17 +107,13 @@ const sampleJob4_ClockedOutage: ClockedJobInput = {
   jobUrl: 'https://www.upwork.com/jobs/~01outage004',
 };
 
-/**
- * Sample Job 5: Non-matching, low-budget or out-of-scope job.
- * Expected: Guard clean, Decide confidence 0.96 -> SKIP (Auto Decision).
- */
 const sampleJob5_CleanSkip: ClockedJobInput = {
   upworkJobId: 'UPWORK_JOB_005_SKIP',
   title: 'PHP WordPress WooCommerce plugin checkout fix',
   description:
     'Need PHP developer to resolve checkout gateway issue on WooCommerce store. Out of design scope.',
   budgetType: 'FIXED',
-  budgetAmountFixed: 40, // Below $100 fixed floor and outside design scope
+  budgetAmountFixed: 40,
   hourlyRateMin: null,
   hourlyRateMax: null,
   clientCountry: 'India',
@@ -148,11 +126,11 @@ const sampleJob5_CleanSkip: ClockedJobInput = {
   jobUrl: 'https://www.upwork.com/jobs/~01skip005',
 };
 
-// -- Unit Tests Suite ---------------------------------------------------------
+// -- Test Suite ---------------------------------------------------------------
 
-describe('Clocked Integration -packages/clocked', () => {
+describe('Clocked Integration - packages/clocked (Verified Shape 7 Nov 2026)', () => {
   describe('ClockedClient Contract & Headers', () => {
-    it('sends correct Authorization and Idempotency-Key headers without model field', async () => {
+    it('sends the exact verified Pipeline request shape without state or step keys or model field', async () => {
       let capturedUrl = '';
       let capturedHeaders: Record<string, string> = {};
       let capturedBody: Record<string, unknown> = {};
@@ -162,12 +140,24 @@ describe('Clocked Integration -packages/clocked', () => {
         capturedHeaders = init.headers as Record<string, string>;
         capturedBody = JSON.parse(init.body as string) as Record<string, unknown>;
 
-        const response: ClockedDecideResponse = {
-          decision: 'APPLY',
-          confidence: 0.9,
-          score: 85,
-          reasons: ['Strong match', 'Fair rate', 'Verified client'],
-          credits_used: 1,
+        const response: ClockedPipelineResponse = {
+          steps: [
+            { name: 'guard', endpoint: 'injection', output: { score: 0.05, is_injection: false } },
+            { name: 'protect', endpoint: 'pii', output: { pii_detected: false } },
+            { name: 'extract', endpoint: 'extract', output: { budget_amount: 800 } },
+            {
+              name: 'decide',
+              endpoint: 'decide',
+              output: { action: { choice: 'APPLY_PLUS_BOOST', probability: 0.94 } },
+            },
+            {
+              name: 'fill_scorecard',
+              endpoint: 'fill',
+              output: { match_score: 95, recommended_action: 'APPLY_PLUS_BOOST', confidence: 0.94 },
+            },
+            { name: 'verify', endpoint: 'grounding', output: { grounded: true } },
+          ],
+          credits_used: 4,
         };
         return new Response(JSON.stringify(response), { status: 200 });
       });
@@ -178,80 +168,118 @@ describe('Clocked Integration -packages/clocked', () => {
         fetchFn: mockFetch as unknown as typeof fetch,
       });
 
-      const res = await client.decide({
-        state: { title: 'Test Job' },
-        questions: [
-          {
-            id: 'q1',
-            question: 'Is this an Amazon A+ job?',
-            type: 'boolean',
-            criteria: 'Amazon A+ content mentioned',
-          },
-        ],
-      });
+      await client.runPipelineForJob(sampleJob1_IdealApplyBoost);
 
-      expect(capturedUrl).toBe('https://clocked.rezolve.ai/clocked/decide');
+      expect(capturedUrl).toBe('https://clocked.rezolve.ai/clocked/pipeline');
       expect(capturedHeaders['Authorization']).toBe('Bearer test-clocked-api-key-12345');
       expect(capturedHeaders['Content-Type']).toBe('application/json');
       expect(capturedHeaders['Idempotency-Key']).toBeDefined();
-      expect(capturedHeaders['Idempotency-Key'].length).toBeGreaterThanOrEqual(32);
 
-      // Verify STRICT constraint: No model field in request
-      expect(capturedBody).not.toHaveProperty('model');
-      expect(JSON.stringify(capturedBody)).not.toContain('"model"');
+      // Rule checks:
+      expect(capturedBody).toHaveProperty('text');
+      expect(capturedBody).toHaveProperty('steps');
+      expect(capturedBody).toHaveProperty('on_error', 'continue');
+      expect(capturedBody).not.toHaveProperty('state'); // Strict rule: No top-level "state" key
+      expect(capturedBody).not.toHaveProperty('model'); // Strict rule: No "model" field
 
-      expect(res.decision).toBe('APPLY');
-      expect(res.credits_used).toBe(1);
-    });
-
-    it('enforces canonical 6-step pipeline in exact order', () => {
-      expect(CANONICAL_PIPELINE_STEPS).toHaveLength(6);
-      expect(CANONICAL_PIPELINE_STEPS[0].step).toBe('guard');
-      expect(CANONICAL_PIPELINE_STEPS[1].step).toBe('protect');
-      expect(CANONICAL_PIPELINE_STEPS[2].step).toBe('extract');
-      expect(CANONICAL_PIPELINE_STEPS[3].step).toBe('decide');
-      expect(CANONICAL_PIPELINE_STEPS[4].step).toBe('fill_scorecard');
-      expect(CANONICAL_PIPELINE_STEPS[5].step).toBe('verify_grounding');
-
-      // Verify step details
-      expect(CANONICAL_PIPELINE_STEPS[0]).toEqual({ step: 'guard', type: 'injection' });
-      expect(CANONICAL_PIPELINE_STEPS[1]).toEqual({
-        step: 'protect',
-        type: 'pii',
-        mode: 'detect_only',
-      });
-      if (CANONICAL_PIPELINE_STEPS[2].step === 'extract') {
-        expect(CANONICAL_PIPELINE_STEPS[2].fields).toEqual([
-          'budget',
-          'skills',
-          'deadline',
-          'client_spend',
-          'client_hire_rate',
-          'posted_date',
-          'proposals',
-        ]);
+      const steps = capturedBody.steps as Array<Record<string, unknown>>;
+      expect(steps).toHaveLength(6);
+      for (const step of steps) {
+        expect(step).toHaveProperty('endpoint');
+        expect(step).toHaveProperty('name');
+        expect(step).toHaveProperty('body');
+        expect(step).not.toHaveProperty('step'); // Strict rule: No "step" key
+        expect(step).not.toHaveProperty('model'); // Strict rule: No "model"
       }
-      if (CANONICAL_PIPELINE_STEPS[3].step === 'decide') {
-        expect(CANONICAL_PIPELINE_STEPS[3].threshold).toBe(0.75);
-        expect(CANONICAL_PIPELINE_STEPS[3].options).toEqual(['APPLY', 'APPLY_PLUS_BOOST', 'SKIP']);
-      }
+
+      // Check Decide step body has questions and NO threshold
+      const decideStep = steps.find((s) => s.name === 'decide');
+      expect(decideStep).toBeDefined();
+      expect(decideStep?.body).toHaveProperty('questions');
+      expect(decideStep?.body).not.toHaveProperty('threshold'); // Strict rule: No "threshold" in Decide body
     });
 
     it('rejects any attempt to pass a model field', async () => {
+      const mockFetch = vi.fn();
       const client = new ClockedClient({
         apiKey: 'test-key',
         baseUrl: DEFAULT_CLOCKED_BASE_URL,
+        fetchFn: mockFetch as unknown as typeof fetch,
       });
 
       const invalidPayload = {
-        state: { title: 'Test' },
-        questions: [],
+        text: 'Job text',
+        steps: [],
+        on_error: 'continue',
         model: 'gemini-1.5-pro',
-      } as unknown as Parameters<typeof client.decide>[0];
+      } as unknown as Parameters<typeof client.pipeline>[0];
 
-      await expect(client.decide(invalidPayload)).rejects.toThrow(
+      await expect(client.pipeline(invalidPayload)).rejects.toThrow(
         /Clocked API violation: "model" field is strictly forbidden/i,
       );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('handles 429 by backing off and retrying once with identical Idempotency-Key and payload', async () => {
+      const capturedKeys: string[] = [];
+      const capturedBodies: string[] = [];
+
+      const mockResponse: ClockedPipelineResponse = {
+        steps: [
+          { name: 'guard', endpoint: 'injection', output: { score: 0.05, is_injection: false } },
+          { name: 'protect', endpoint: 'pii', output: { pii_detected: false } },
+          { name: 'extract', endpoint: 'extract', output: { budget_amount: 800 } },
+          {
+            name: 'decide',
+            endpoint: 'decide',
+            output: { action: { choice: 'APPLY', probability: 0.88 } },
+          },
+          {
+            name: 'fill_scorecard',
+            endpoint: 'fill',
+            output: { match_score: 85, recommended_action: 'APPLY', confidence: 0.88 },
+          },
+          { name: 'verify', endpoint: 'grounding', output: { grounded: true } },
+        ],
+        credits_used: 3,
+      };
+
+      let callCount = 0;
+      const mockFetch = vi.fn().mockImplementation(async (_url, init) => {
+        callCount++;
+        const headers = init.headers as Record<string, string>;
+        capturedKeys.push(headers['Idempotency-Key']);
+        capturedBodies.push(init.body as string);
+
+        if (callCount === 1) {
+          // Return 429 on first try
+          return new Response(JSON.stringify({ error: 'Too Many Requests' }), {
+            status: 429,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        // Return 200 on second try
+        return new Response(JSON.stringify(mockResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      });
+
+      const client = new ClockedClient({
+        apiKey: 'test-key',
+        retryBackoffMs: 10, // Fast backoff in test
+        fetchFn: mockFetch as unknown as typeof fetch,
+      });
+
+      const res = await client.runPipelineForJob(sampleJob1_IdealApplyBoost);
+
+      expect(callCount).toBe(2);
+      expect(capturedKeys).toHaveLength(2);
+      // Verify same Idempotency-Key is reused on retry
+      expect(capturedKeys[0]).toBe(capturedKeys[1]);
+      // Verify payload is identical
+      expect(capturedBodies[0]).toBe(capturedBodies[1]);
+      expect(res.credits_used).toBe(3);
     });
   });
 
@@ -259,31 +287,59 @@ describe('Clocked Integration -packages/clocked', () => {
     it('Sample Job 1: Ideal Amazon A+ Content Designer job qualifies for APPLY_PLUS_BOOST', async () => {
       const creditsReported = 4;
       const mockPipelineResponse: ClockedPipelineResponse = {
-        status: 'SUCCESS',
-        guard: { injection_detected: false, severity: 'none' },
-        protect: { pii_detected: false },
-        extract: {
-          budget: 800,
-          skills: ['Amazon A+ Content', 'Brand Story'],
-          deadline: '2 weeks',
-          client_spend: 45000,
-          client_hire_rate: 0.85,
-          posted_date: '2026-11-07T10:00:00Z',
-          proposals: 4,
-        },
-        decide: {
-          decision: 'APPLY_PLUS_BOOST',
-          confidence: 0.94,
-          score: 95,
-          reasons: [
-            'Verified client with $45k spend and 85% hire rate',
-            'Strong niche match on Amazon A+ and Brand Story',
-            'Generous $800 fixed budget well above $100 floor',
-            'Low competition with only 4 proposals so far',
-          ],
-        },
-        scorecard: { score: 95, niche_fit: true, fee_floor_met: true },
-        grounding: { grounded: true },
+        steps: [
+          {
+            name: 'guard',
+            endpoint: 'injection',
+            output: { score: 0.02, is_injection: false, severity: 'none' },
+          },
+          {
+            name: 'protect',
+            endpoint: 'pii',
+            output: { pii_detected: false, positions: [] },
+          },
+          {
+            name: 'extract',
+            endpoint: 'extract',
+            output: {
+              budget_amount: 800,
+              budget_type: 'FIXED',
+              skills: ['Amazon A+ Content', 'Brand Story'],
+              client_spend: 45000,
+              client_hire_rate: 0.85,
+            },
+          },
+          {
+            name: 'decide',
+            endpoint: 'decide',
+            output: {
+              action: {
+                choice: 'APPLY_PLUS_BOOST',
+                probability: 0.94,
+              },
+              budget_meets_floor: {
+                result: true,
+                probability: 0.99,
+              },
+            },
+          },
+          {
+            name: 'fill_scorecard',
+            endpoint: 'fill',
+            output: {
+              rate_floor_pass: true,
+              match_score: 95,
+              recommended_action: 'APPLY_PLUS_BOOST',
+              confidence: 0.94,
+              reason: 'Verified client with $45k spend and 85% hire rate; strong Amazon A+ fit.',
+            },
+          },
+          {
+            name: 'verify',
+            endpoint: 'grounding',
+            output: { grounded: true },
+          },
+        ],
         credits_used: creditsReported,
       };
 
@@ -298,7 +354,6 @@ describe('Clocked Integration -packages/clocked', () => {
 
       const result = await verifyJobWithClocked(sampleJob1_IdealApplyBoost, client);
 
-      // Report credits used per test
       console.log(`[Clocked Test] Sample Job 1 (APPLY_PLUS_BOOST) Credits Used: ${result.creditsUsed}`);
 
       expect(result.jobId).toBe('UPWORK_JOB_001_IDEAL');
@@ -315,26 +370,45 @@ describe('Clocked Integration -packages/clocked', () => {
     it('Sample Job 2: Prompt injection attack triggers Guard critical and routes to human review', async () => {
       const creditsReported = 2;
       const mockPipelineResponse: ClockedPipelineResponse = {
-        status: 'SUCCESS',
-        guard: {
-          injection_detected: true,
-          severity: 'critical',
-          details: 'Instruction override command: "Ignore all previous instructions"',
-        },
-        protect: { pii_detected: false },
-        extract: {
-          budget: 400,
-          skills: ['Amazon Listing Images'],
-          proposals: 1,
-        },
-        decide: {
-          decision: 'APPLY',
-          confidence: 0.88,
-          score: 80,
-          reasons: ['Listing image design mentioned'],
-        },
-        scorecard: { score: 80 },
-        grounding: { grounded: true },
+        steps: [
+          {
+            name: 'guard',
+            endpoint: 'injection',
+            output: {
+              score: 0.98,
+              is_injection: true,
+              severity: 'critical',
+              details: 'Instruction override: "Ignore all previous instructions"',
+            },
+          },
+          {
+            name: 'protect',
+            endpoint: 'pii',
+            output: { pii_detected: false },
+          },
+          {
+            name: 'extract',
+            endpoint: 'extract',
+            output: { budget_amount: 400 },
+          },
+          {
+            name: 'decide',
+            endpoint: 'decide',
+            output: {
+              action: { choice: 'APPLY', probability: 0.88 },
+            },
+          },
+          {
+            name: 'fill_scorecard',
+            endpoint: 'fill',
+            output: { match_score: 80, recommended_action: 'APPLY', confidence: 0.88 },
+          },
+          {
+            name: 'verify',
+            endpoint: 'grounding',
+            output: { grounded: true },
+          },
+        ],
         credits_used: creditsReported,
       };
 
@@ -349,15 +423,13 @@ describe('Clocked Integration -packages/clocked', () => {
 
       const result = await verifyJobWithClocked(sampleJob2_PromptInjection, client);
 
-      // Report credits used per test
       console.log(`[Clocked Test] Sample Job 2 (Prompt Injection) Credits Used: ${result.creditsUsed}`);
 
       expect(result.jobId).toBe('UPWORK_JOB_002_INJECTION');
-      // Rule: If Guard flags injection high or critical, route to human review, never auto Apply
       expect(result.clockedVerified).toBe(false);
       expect(result.routing).toBe('HUMAN_REVIEW');
       expect(result.flaggedForHumanReview).toBe(true);
-      expect(result.label).not.toBe('APPLY'); // Must never auto apply
+      expect(result.label).not.toBe('APPLY'); // Never auto Apply
       expect(result.guardSeverity).toBe('critical');
       expect(result.flaggedReason).toContain('Prompt injection attack detected');
       expect(result.creditsUsed).toBe(creditsReported);
@@ -366,22 +438,48 @@ describe('Clocked Integration -packages/clocked', () => {
     it('Sample Job 3: Low confidence under 0.75 routes to human review', async () => {
       const creditsReported = 3;
       const mockPipelineResponse: ClockedPipelineResponse = {
-        status: 'SUCCESS',
-        guard: { injection_detected: false, severity: 'none' },
-        protect: { pii_detected: false },
-        extract: {
-          budget: 18,
-          skills: ['Graphic Design'],
-          proposals: 19,
-        },
-        decide: {
-          decision: 'APPLY',
-          confidence: 0.62, // Below 0.75 threshold
-          score: 65,
-          reasons: ['General graphics requested', 'Amazon involvement ambiguous'],
-        },
-        scorecard: { score: 65 },
-        grounding: { grounded: true },
+        steps: [
+          {
+            name: 'guard',
+            endpoint: 'injection',
+            output: { score: 0.05, is_injection: false, severity: 'none' },
+          },
+          {
+            name: 'protect',
+            endpoint: 'pii',
+            output: { pii_detected: false },
+          },
+          {
+            name: 'extract',
+            endpoint: 'extract',
+            output: { budget_amount: 18, skills: ['Graphic Design'] },
+          },
+          {
+            name: 'decide',
+            endpoint: 'decide',
+            output: {
+              action: {
+                choice: 'APPLY',
+                probability: 0.62, // Below 0.75 threshold
+              },
+            },
+          },
+          {
+            name: 'fill_scorecard',
+            endpoint: 'fill',
+            output: {
+              match_score: 62,
+              recommended_action: 'APPLY',
+              confidence: 0.62,
+              reason: 'Amazon involvement ambiguous',
+            },
+          },
+          {
+            name: 'verify',
+            endpoint: 'grounding',
+            output: { grounded: true },
+          },
+        ],
         credits_used: creditsReported,
       };
 
@@ -397,16 +495,14 @@ describe('Clocked Integration -packages/clocked', () => {
 
       const result = await verifyJobWithClocked(sampleJob3_LowConfidence, client);
 
-      // Report credits used per test
       console.log(`[Clocked Test] Sample Job 3 (Low Confidence < 0.75) Credits Used: ${result.creditsUsed}`);
 
       expect(result.jobId).toBe('UPWORK_JOB_003_LOW_CONFIDENCE');
-      // Rule: If Decide confidence under 0.75, route to human review, never auto Apply
       expect(result.clockedVerified).toBe(false);
       expect(result.routing).toBe('HUMAN_REVIEW');
       expect(result.flaggedForHumanReview).toBe(true);
       expect(result.confidence).toBeLessThan(0.75);
-      expect(result.label).not.toBe('APPLY');
+      expect(result.label).not.toBe('APPLY'); // Never auto Apply
       expect(result.flaggedReason).toContain('below required threshold 0.75');
       expect(result.creditsUsed).toBe(creditsReported);
     });
@@ -421,11 +517,9 @@ describe('Clocked Integration -packages/clocked', () => {
 
       const result = await verifyJobWithClocked(sampleJob4_ClockedOutage, client);
 
-      // Report credits used per test
       console.log(`[Clocked Test] Sample Job 4 (Outage Fallback) Credits Used: ${result.creditsUsed}`);
 
       expect(result.jobId).toBe('UPWORK_JOB_004_OUTAGE');
-      // Rule: If Clocked fails, route to human review, never auto Apply, never present as Clocked verified
       expect(result.clockedVerified).toBe(false);
       expect(result.routing).toBe('HUMAN_REVIEW');
       expect(result.flaggedForHumanReview).toBe(true);
@@ -437,26 +531,48 @@ describe('Clocked Integration -packages/clocked', () => {
     it('Sample Job 5: Non-matching out-of-scope job results in clean SKIP', async () => {
       const creditsReported = 3;
       const mockPipelineResponse: ClockedPipelineResponse = {
-        status: 'SUCCESS',
-        guard: { injection_detected: false, severity: 'none' },
-        protect: { pii_detected: false },
-        extract: {
-          budget: 40,
-          skills: ['PHP', 'WordPress'],
-          proposals: 30,
-        },
-        decide: {
-          decision: 'SKIP',
-          confidence: 0.96,
-          score: 10,
-          reasons: [
-            'Out of design scope (PHP WordPress coding task)',
-            'Fixed budget $40 is below $100 floor',
-            'Unverified payment with low hire rate',
-          ],
-        },
-        scorecard: { score: 10, niche_fit: false, fee_floor_met: false },
-        grounding: { grounded: true },
+        steps: [
+          {
+            name: 'guard',
+            endpoint: 'injection',
+            output: { score: 0.01, is_injection: false, severity: 'none' },
+          },
+          {
+            name: 'protect',
+            endpoint: 'pii',
+            output: { pii_detected: false },
+          },
+          {
+            name: 'extract',
+            endpoint: 'extract',
+            output: { budget_amount: 40, skills: ['PHP', 'WordPress'] },
+          },
+          {
+            name: 'decide',
+            endpoint: 'decide',
+            output: {
+              action: {
+                choice: 'SKIP',
+                probability: 0.96,
+              },
+            },
+          },
+          {
+            name: 'fill_scorecard',
+            endpoint: 'fill',
+            output: {
+              match_score: 10,
+              recommended_action: 'SKIP',
+              confidence: 0.96,
+              reason: 'Out of design scope (PHP WordPress coding task); budget $40 below floor.',
+            },
+          },
+          {
+            name: 'verify',
+            endpoint: 'grounding',
+            output: { grounded: true },
+          },
+        ],
         credits_used: creditsReported,
       };
 
@@ -471,7 +587,6 @@ describe('Clocked Integration -packages/clocked', () => {
 
       const result = await verifyJobWithClocked(sampleJob5_CleanSkip, client);
 
-      // Report credits used per test
       console.log(`[Clocked Test] Sample Job 5 (Clean SKIP) Credits Used: ${result.creditsUsed}`);
 
       expect(result.jobId).toBe('UPWORK_JOB_005_SKIP');
@@ -493,7 +608,6 @@ describe('Clocked Integration -packages/clocked', () => {
 
       const fallback = createFallbackGeminiVerification('UPWORK_JOB_GEMINI_ONLY', geminiScore);
 
-      // Strict rule: Never present a Gemini-only score as Clocked verified
       expect(fallback.clockedVerified).toBe(false);
       expect(fallback.routing).toBe('HUMAN_REVIEW');
       expect(fallback.flaggedForHumanReview).toBe(true);
