@@ -40,6 +40,9 @@ const envSchema = z.object({
     .transform((val) => val === 'true'),
   MAGIC_LINK_TTL_MINUTES: z.coerce.number().int().positive().default(15),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  // Clocked Integration (Server-side only)
+  CLOCKED_API_KEY: z.string().optional(),
+  CLOCKED_BASE_URL: z.string().url().default('https://clocked.rezolve.ai/clocked'),
 });
 
 /**

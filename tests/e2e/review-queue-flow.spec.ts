@@ -195,8 +195,8 @@ test.describe('Review Queue Human Flow (Section D3)', () => {
     const reviewLink = page.locator('a:has-text("Review Proposal →")').first();
     await expect(reviewLink).toBeVisible();
     await reviewLink.click();
-
-    await expect(page.locator('h3:has-text("Proposal Draft")')).toBeVisible();
+    await page.waitForURL('**/queue/**');
+    await expect(page.locator('h3:has-text("Proposal Draft")')).toBeVisible({ timeout: 15000 });
 
     // 3. Edit Draft and Save as New Version
     const textarea = page.locator('textarea');
