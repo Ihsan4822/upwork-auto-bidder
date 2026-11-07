@@ -6,7 +6,6 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "prisma generate",
-    "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
@@ -17,10 +16,10 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@upwork-bidder/config": "workspace:*",
+    "prisma": "^5.22.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "prisma": "^5.22.0",
     "tsx": "^4.19.0",
     "typescript": "*"
   }
