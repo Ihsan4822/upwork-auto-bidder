@@ -138,6 +138,22 @@ importers:
         specifier: '*'
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/clocked:
+    dependencies:
+      '@upwork-bidder/config':
+        specifier: workspace:*
+        version: link:../config
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/config:
     dependencies:
       zod:

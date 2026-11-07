@@ -9,6 +9,7 @@ export default defineConfig({
       '@upwork-bidder/ai': path.resolve(__dirname, './packages/ai/src'),
       '@upwork-bidder/db': path.resolve(__dirname, './packages/db/src'),
       '@upwork-bidder/ui': path.resolve(__dirname, './packages/ui/src'),
+      '@upwork-bidder/clocked': path.resolve(__dirname, './packages/clocked/src'),
     },
   },
   test: {
