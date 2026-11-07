@@ -219,6 +219,24 @@ export async function executePipelineCycle(
         console.warn('[Pipeline] AI_API_KEY not configured. Skipping AI scoring step.');
         return summary;
       }
+
+      const reason = 'AI provider unavailable, no Clocked call made, no credits spent';
+      console.warn(
+        `[Pipeline] ${reason}. Routing ${jobsToScore.length} job(s) to IN_REVIEW.`,
+      );
+      for (const job of jobsToScore) {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: 'IN_REVIEW',
+            filterReason: reason,
+          },
+        });
+        console.warn(
+          `[Pipeline] Job ${job.upworkJobId} Clocked action: SKIP, confidence: 0.00, credits used: 0, outcome: human review (${reason})`,
+        );
+      }
+      return summary;
     }
 
     const activeClockedClient =
@@ -443,6 +461,14 @@ export async function executePipelineCycle(
                   draftErr,
                 );
               }
+            } else {
+              await prisma.job.update({
+                where: { id: job.id },
+                data: {
+                  status: 'IN_REVIEW',
+                  filterReason: 'AI provider unavailable for drafting',
+                },
+              });
             }
             continue;
           }

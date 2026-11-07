@@ -352,4 +352,38 @@ describe('Worker Scoring Path - Clocked Integration', () => {
     expect(summary.jobsScored).toBe(1);
     expect(summary.draftsGenerated).toBe(1);
   });
+
+  it('Flag on with AI provider missing: does not score job, does not call Clocked, routes job to IN_REVIEW, and creates no draft', async () => {
+    process.env.CLOCKED_ENABLED = 'true';
+
+    // Mock AI provider creation throwing (missing AI_API_KEY)
+    mockCreateAiProvider.mockImplementation(() => {
+      throw new Error('AI_API_KEY is required');
+    });
+
+    const mockClockedClient = {
+      threshold: 0.75,
+      runPipelineForJob: vi.fn(),
+    };
+
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+
+    // 1. Clocked client was NEVER called (no credits spent)
+    expect(mockClockedClient.runPipelineForJob).not.toHaveBeenCalled();
+
+    // 2. Job is NOT left SCORED_PENDING (routed to IN_REVIEW with reason)
+    expect(mockPrisma.job.update).toHaveBeenCalledWith({
+      where: { id: sampleJob.id },
+      data: {
+        status: 'IN_REVIEW',
+        filterReason: 'AI provider unavailable, no Clocked call made, no credits spent',
+      },
+    });
+
+    // 3. No draft is made
+    expect(mockDraftProposalWithAi).not.toHaveBeenCalled();
+    expect(mockPrisma.draft.create).not.toHaveBeenCalled();
+    expect(summary.draftsGenerated).toBe(0);
+    expect(summary.jobsScored).toBe(0);
+  });
 });
