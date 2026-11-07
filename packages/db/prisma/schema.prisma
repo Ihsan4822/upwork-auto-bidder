@@ -8,7 +8,8 @@
 // - Add new, migrate data, deprecate, remove later
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
