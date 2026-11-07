@@ -38,6 +38,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.43
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
       '@upwork-bidder/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -50,40 +59,30 @@ importers:
       '@upwork-bidder/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      autoprefixer:
+        specifier: ^10.0.0
+        version: 10.6.2(postcss@8.5.32)
       next:
         specifier: ^15.0.0
         version: 15.5.29(@playwright/test@1.64.1)(@types/node@20.19.43)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      postcss:
+        specifier: ^8.0.0
+        version: 8.5.32
       react:
         specifier: ^19.0.0
         version: 19.3.1
       react-dom:
         specifier: ^19.0.0
         version: 19.3.1(react@19.3.1)
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: '*'
-        version: 20.19.43
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.0.0
-        version: 19.3.0(@types/react@19.3.0)
-      autoprefixer:
-        specifier: ^10.0.0
-        version: 10.6.2(postcss@8.5.32)
-      postcss:
-        specifier: ^8.0.0
-        version: 8.5.32
       tailwindcss:
         specifier: ^3.4.0
         version: 3.4.19(tsx@4.23.15)
       typescript:
         specifier: '*'
         version: 5.9.3
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
 
   apps/worker:
     dependencies:
