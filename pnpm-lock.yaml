@@ -90,6 +90,9 @@ importers:
       '@upwork-bidder/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@upwork-bidder/clocked':
+        specifier: workspace:*
+        version: link:../../packages/clocked
       '@upwork-bidder/config':
         specifier: workspace:*
         version: link:../../packages/config
