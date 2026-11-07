@@ -10,22 +10,21 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@upwork-bidder/config": "workspace:*",
-    "@upwork-bidder/db": "workspace:*",
-    "@upwork-bidder/core": "workspace:*",
-    "@upwork-bidder/ui": "workspace:*",
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zod": "^3.23.0"
-  },
-  "devDependencies": {
+    "@types/node": "*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@types/node": "*",
-    "typescript": "*",
-    "tailwindcss": "^3.4.0",
+    "@upwork-bidder/config": "workspace:*",
+    "@upwork-bidder/core": "workspace:*",
+    "@upwork-bidder/db": "workspace:*",
+    "@upwork-bidder/ui": "workspace:*",
     "autoprefixer": "^10.0.0",
-    "postcss": "^8.0.0"
-  }
+    "next": "^15.0.0",
+    "postcss": "^8.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "*",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {}
 }
