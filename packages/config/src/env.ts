@@ -17,6 +17,7 @@ const envSchema = z.object({
   AI_MODEL_NAME: z.string().default('gemini-1.5-pro'),
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   UPWORK_MCP_URL: z.string().url().default('https://mcp.upwork.com/mcp'),
+  UPWORK_CLIENT_ID: z.string().optional(),
   OAUTH_TOKEN_ENCRYPTION_KEY: z
     .string()
     .length(64, 'OAUTH_TOKEN_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)'),

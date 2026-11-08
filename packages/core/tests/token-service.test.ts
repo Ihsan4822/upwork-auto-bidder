@@ -151,6 +151,53 @@ describe('Task C: Token Service & Refresh Flow', () => {
     const bodyStr = String(callArgs[1]?.body || '');
     expect(bodyStr).toContain('grant_type=refresh_token');
     expect(bodyStr).toContain('client_id=');
+    expect(bodyStr).toContain('resource=https%3A%2F%2Fmcp.upwork.com%2Fmcp');
+  });
+
+  it('uses UPWORK_CLIENT_ID env variable when set', async () => {
+    process.env.UPWORK_CLIENT_ID = 'custom-test-client-id';
+    const oldAccessToken = 'old-access-token';
+    const rawRefreshToken = 'refresh-token-active';
+    const newAccessToken = 'fresh-new-access-token';
+    const expiresAt = new Date(Date.now() + 4 * 60 * 1000);
+    const now = new Date();
+
+    mockPrisma.oauthToken.findFirst.mockResolvedValueOnce({
+      id: 'token_row_custom_client',
+      profileId: 'prof_test',
+      encryptedAccessToken: encryptToken(oldAccessToken, TEST_KEY),
+      encryptedRefreshToken: encryptToken(rawRefreshToken, TEST_KEY),
+      expiresAt,
+      revokedAt: null,
+      updatedAt: now,
+    });
+
+    mockPrisma.oauthToken.findUnique.mockResolvedValue({
+      id: 'token_row_custom_client',
+      updatedAt: now,
+      expiresAt,
+      encryptedAccessToken: encryptToken(oldAccessToken, TEST_KEY),
+      encryptedRefreshToken: encryptToken(rawRefreshToken, TEST_KEY),
+    });
+
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        access_token: newAccessToken,
+        expires_in: 86400,
+        token_type: 'Bearer',
+      }),
+    });
+
+    const token = await getValidAccessToken('prof_test', TEST_KEY);
+
+    expect(token).toBe(newAccessToken);
+    const callArgs = vi.mocked(global.fetch).mock.calls[0];
+    const bodyStr = String(callArgs[1]?.body || '');
+    expect(bodyStr).toContain('client_id=custom-test-client-id');
+    expect(bodyStr).toContain('resource=https%3A%2F%2Fmcp.upwork.com%2Fmcp');
+
+    delete process.env.UPWORK_CLIENT_ID;
   });
 
   it('triggers refresh when token expired 10 minutes ago', async () => {

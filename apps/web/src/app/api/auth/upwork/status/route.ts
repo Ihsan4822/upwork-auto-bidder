@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     });
 
     const timeoutPromise = new Promise<null>((_, reject) =>
-      setTimeout(() => reject(new Error('DB_TIMEOUT')), 1500),
+      setTimeout(() => reject(new Error('DB_TIMEOUT')), 8000),
     );
 
     const profile = await Promise.race([queryPromise, timeoutPromise]);
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const needsReconnect = profile.connectionStatus === 'DISCONNECTED' && activeToken;
 
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
-    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
+    const clientId = process.env.UPWORK_CLIENT_ID || `${appUrl}/api/auth/upwork/client-metadata.json`;
 
     return NextResponse.json({
       profileId: profile.id,

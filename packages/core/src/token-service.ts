@@ -136,12 +136,13 @@ async function refreshWithOptimisticLock(
   let responseBody: Record<string, unknown>;
   try {
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
-    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
+    const clientId = process.env.UPWORK_CLIENT_ID || `${appUrl}/api/auth/upwork/client-metadata.json`;
 
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: clientId,
       refresh_token: refreshToken,
+      resource: 'https://mcp.upwork.com/mcp',
     });
 
     // The Upwork MCP OAuth server supports `none` auth method for public clients.
