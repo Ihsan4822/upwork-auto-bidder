@@ -72,3 +72,13 @@ password column — unnecessary for one user). SSO/OAuth for the app itself (ove
 
 **Note:** The `users` table has a `magic_link_token` column and `magic_link_expires_at`.
 If password login is needed in a future phase, it is added without breaking this design.
+
+---
+
+## 2026-11-08 · Add list_accounts to ALLOWED_MCP_TOOLS for Upwork MCP account discovery
+
+**Decision:** Add `list_accounts` to `ALLOWED_MCP_TOOLS` in `packages/ai/src/mcp-allowlist.ts`.
+
+**Reason:** The official Upwork MCP server (`https://mcp.upwork.com/mcp`) requires `org_uid` as a mandatory argument for `upwork__find_jobs`. Calling `upwork__list_accounts` is required to discover the user's freelancer `org_uid` before executing read-only job searches. The tool is strictly read-only, has no write capabilities, and matches none of the banned tool patterns.
+
+**Rejected:** Hardcoding a static `org_uid` in environment configuration (fragile if account details change or during multi-account support).

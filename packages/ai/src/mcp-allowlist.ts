@@ -31,6 +31,7 @@ export const ALLOWED_MCP_TOOLS = [
   'list_jobs',
   'get_job',
   'get_job_details',
+  'list_accounts',
 ] as const;
 
 export type AllowedMcpTool = (typeof ALLOWED_MCP_TOOLS)[number];
@@ -83,7 +84,8 @@ export class BannedMcpToolError extends Error {
  * @returns true if the tool is allowed, false if banned
  */
 export function isMcpToolAllowed(toolName: string): boolean {
-  return (ALLOWED_MCP_TOOLS as readonly string[]).includes(toolName);
+  const stripped = toolName.replace(/^upwork__/, '');
+  return (ALLOWED_MCP_TOOLS as readonly string[]).includes(stripped);
 }
 
 /**

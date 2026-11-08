@@ -13,8 +13,10 @@ import { resolve } from 'path';
 function loadEnv() {
   const envPaths = [
     resolve(process.cwd(), '.env'),
+    resolve(process.cwd(), '../.env'),
     resolve(process.cwd(), '../../.env'),
     resolve(__dirname, '../.env'),
+    resolve(__dirname, '../../.env'),
     resolve(__dirname, '../../../.env'),
   ];
   for (const envPath of envPaths) {
