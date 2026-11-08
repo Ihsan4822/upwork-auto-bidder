@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
-import { prepareTokenForStorage, validateGrantedScopes } from '@upwork-bidder/core';
+import { prepareTokenForStorage, validateGrantedScopes, ALLOWED_OAUTH_SCOPES } from '@upwork-bidder/core';
 import { getCurrentUser } from '@/lib/auth';
 
 /**
@@ -95,6 +95,9 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = (await tokenResponse.json()) as Record<string, unknown>;
+
+    // Log token response field names only (never any token values) for diagnosis
+    console.log('[Upwork Callback] Token response fields received:', Object.keys(tokenData));
     const accessToken = typeof tokenData.access_token === 'string' ? tokenData.access_token : null;
     const refreshToken =
       typeof tokenData.refresh_token === 'string' ? tokenData.refresh_token : undefined;
@@ -104,18 +107,39 @@ export async function GET(request: NextRequest) {
       throw new Error('Upwork token endpoint did not return an access_token');
     }
 
-    // 4. Extract and strictly validate returned scopes
-    const rawScope = tokenData.scope || '';
-    const returnedScopes =
-      typeof rawScope === 'string'
-        ? rawScope.split(/[\s,]+/).filter(Boolean)
-        : Array.isArray(rawScope)
-          ? rawScope
-          : [];
+    // 4. Extract and strictly validate returned scopes per RFC 6749 Section 5.1:
+    // If the token response omits the scope field or it is empty string, the granted scope
+    // is identical to the requested scope (ALLOWED_OAUTH_SCOPES: jobs:read, profile:read).
+    const rawScope = tokenData.scope;
+    let grantedScopes: string[];
 
-    const scopeValidation = validateGrantedScopes(returnedScopes as string[]);
-    if (!scopeValidation.valid) {
-      throw new Error(`Scope violation (Section 3, Rule 2): ${scopeValidation.reason}`);
+    if (!rawScope || (typeof rawScope === 'string' && rawScope.trim() === '')) {
+      console.log(
+        '[Upwork Callback] Scope field omitted in token response, defaulting to requested ALLOWED_OAUTH_SCOPES per RFC 6749 Section 5.1',
+      );
+      grantedScopes = [...ALLOWED_OAUTH_SCOPES];
+    } else {
+      const parsedScopes =
+        typeof rawScope === 'string'
+          ? rawScope.split(/[\s,]+/).filter(Boolean)
+          : Array.isArray(rawScope)
+            ? (rawScope as string[])
+            : [];
+
+      const scopeValidation = validateGrantedScopes(parsedScopes);
+      if (!scopeValidation.valid) {
+        throw new Error(`Scope violation (Section 3, Rule 2): ${scopeValidation.reason}`);
+      }
+
+      // Ensure exact match: must not miss any required scope
+      const missingRequired = ALLOWED_OAUTH_SCOPES.filter((s) => !parsedScopes.includes(s));
+      if (missingRequired.length > 0) {
+        throw new Error(
+          `Scope violation: Token response missing required scopes: ${missingRequired.join(', ')}`,
+        );
+      }
+
+      grantedScopes = parsedScopes;
     }
 
     // 5. Find or initialize profile from the signed-in session user
@@ -147,7 +171,7 @@ export async function GET(request: NextRequest) {
         profileId: profile.id,
         accessToken,
         refreshToken,
-        scopesGranted: returnedScopes as string[],
+        scopesGranted: grantedScopes,
         expiresInSeconds: expiresIn,
       },
       encryptionKey,
@@ -185,7 +209,7 @@ export async function GET(request: NextRequest) {
         jobId: null,
         action: 'CONNECTED_UPWORK',
         actorId: profile.userId,
-        note: `Upwork MCP connected via OAuth 2.1 PKCE with verified scopes: ${(returnedScopes as string[]).join(', ')}`,
+        note: `Upwork MCP connected via OAuth 2.1 PKCE with verified scopes: ${grantedScopes.join(', ')}`,
       },
     });
 

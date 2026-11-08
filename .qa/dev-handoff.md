@@ -26,6 +26,7 @@
   2. Documented in `.env.example` that `UPWORK_CLIENT_ID` is strictly local-only for loopback bootstrap and must NEVER be set in Vercel production.
   3. Added RFC 8707 resource parameter (`resource=https://mcp.upwork.com/mcp`) to authorize URL, token exchange, and refresh requests per the MCP Authorization spec.
   4. Added unit test verifying token refresh incorporates `UPWORK_CLIENT_ID` and the RFC 8707 resource parameter.
+  5. Implemented RFC 6749 Section 5.1 default scope handling in callback route: when Upwork token response omits scope or returns empty string, defaults to requested ALLOWED_OAUTH_SCOPES (jobs:read, profile:read). When present, validates strictly for exact required scopes. Logs token response field names only (Object.keys) for diagnosis.
 
 ## Preserved Invariants
 - Client metadata document route preserved intact.
