@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     });
 
     const timeoutPromise = new Promise<null>((_, reject) =>
-      setTimeout(() => reject(new Error('DB_TIMEOUT')), 1500),
+      setTimeout(() => reject(new Error('DB_TIMEOUT')), 8000),
     );
 
     const profile = await Promise.race([queryPromise, timeoutPromise]);
