@@ -19,19 +19,32 @@ export default function PortfolioPage() {
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchItems();
   }, []);
 
   async function fetchItems() {
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/portfolio');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Failed to load portfolio items (Status ${res.status})`);
+      }
       const data = await res.json();
       setItems(data.items || []);
-      setLoading(false);
-    } catch {
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to load portfolio library. Please check your connection and try again.',
+      );
+    } finally {
       setLoading(false);
     }
   }
@@ -68,13 +81,60 @@ export default function PortfolioPage() {
         setMessage('Portfolio sample added successfully!');
         await fetchItems();
       } else {
-        const errData = await res.json();
-        setMessage(`Error: ${errData.error || 'Failed to add item'}`);
+        const errData = await res.json().catch(() => null);
+        setMessage(`Error: ${errData?.error || 'Failed to add item'}`);
       }
     } catch (err: unknown) {
       setMessage(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Are you sure you want to delete this portfolio sample?')) {
+      return;
+    }
+    setActionId(id);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/portfolio?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setMessage('Portfolio sample deleted successfully.');
+        await fetchItems();
+      } else {
+        const data = await res.json().catch(() => null);
+        setMessage(`Error: ${data?.error || 'Failed to delete portfolio sample'}`);
+      }
+    } catch (err: unknown) {
+      setMessage(`Error: ${err instanceof Error ? err.message : 'Network error deleting sample'}`);
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function handleToggleActive(id: string, currentStatus: boolean) {
+    setActionId(id);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/portfolio', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive: !currentStatus }),
+      });
+      if (res.ok) {
+        setMessage(`Sample marked as ${!currentStatus ? 'active' : 'inactive'}.`);
+        await fetchItems();
+      } else {
+        const data = await res.json().catch(() => null);
+        setMessage(`Error: ${data?.error || 'Failed to update sample status'}`);
+      }
+    } catch (err: unknown) {
+      setMessage(`Error: ${err instanceof Error ? err.message : 'Network error updating sample'}`);
+    } finally {
+      setActionId(null);
     }
   }
 
@@ -91,6 +151,19 @@ export default function PortfolioPage() {
       {message && (
         <div className="p-4 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
           {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-5 text-center space-y-3">
+          <p className="text-sm font-semibold text-red-800">{error}</p>
+          <button
+            type="button"
+            onClick={fetchItems}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow-sm transition-colors"
+          >
+            Retry Loading Portfolio
+          </button>
         </div>
       )}
 
@@ -166,51 +239,83 @@ export default function PortfolioPage() {
       </div>
 
       {/* List Existing Items */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
-        <h3 className="text-base font-semibold text-slate-900">
-          Current Portfolio Samples ({items.length})
-        </h3>
+      {!error && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+          <h3 className="text-base font-semibold text-slate-900">
+            Current Portfolio Samples ({items.length})
+          </h3>
 
-        {loading ? (
-          <p className="text-xs text-slate-500">Loading samples...</p>
-        ) : items.length === 0 ? (
-          <p className="text-xs text-slate-500">
-            No samples registered yet. Add your first sample above.
-          </p>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {items.map((item) => (
-              <div key={item.id} className="py-3 flex items-start justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-emerald-700 hover:underline block mt-0.5"
-                  >
-                    {item.link} ↗
-                  </a>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {item.nicheTags.map((tag, i) => (
+          {loading ? (
+            <p className="text-xs text-slate-500">Loading samples...</p>
+          ) : items.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              No samples registered yet. Add your first sample above.
+            </p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3"
+                >
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
                       <span
-                        key={i}
-                        className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                          item.isActive
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-slate-100 text-slate-500 border border-slate-200'
+                        }`}
                       >
-                        {tag}
+                        {item.isActive ? 'Active' : 'Inactive'}
                       </span>
-                    ))}
+                    </div>
+
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-emerald-700 hover:underline block mt-0.5"
+                    >
+                      {item.link} ↗
+                    </a>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {item.nicheTags.map((tag, i) => (
+                        <span
+                          key={i}
+                          className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(item.id, item.isActive)}
+                      disabled={actionId === item.id}
+                      className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 transition-colors disabled:opacity-50"
+                    >
+                      {item.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id)}
+                      disabled={actionId === item.id}
+                      className="text-xs px-2.5 py-1 rounded border border-red-200 hover:bg-red-50 text-red-600 transition-colors disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-
-                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded">
-                  Active
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

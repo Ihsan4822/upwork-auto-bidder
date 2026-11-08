@@ -49,6 +49,9 @@ export async function POST(
     const job = await prisma.job.findUnique({
       where: { id: jobId },
       include: {
+        profile: {
+          select: { userId: true },
+        },
         drafts: {
           select: { version: true },
         },
@@ -57,6 +60,14 @@ export async function POST(
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    // Verify job belongs to authenticated session user's profile
+    if (job.profile.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to act on this job' },
+        { status: 403 },
+      );
     }
 
     const currentStatus = job.status as QueueState;

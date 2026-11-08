@@ -11,12 +11,16 @@ export async function GET(
     return sessionResult.errorResponse;
   }
 
+  const { user } = sessionResult;
   const { jobId } = await params;
 
   try {
     const job = await prisma.job.findUnique({
       where: { id: jobId },
       include: {
+        profile: {
+          select: { userId: true },
+        },
         scores: {
           orderBy: { createdAt: 'desc' },
         },
@@ -34,6 +38,13 @@ export async function GET(
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    if (job.profile.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to view this job' },
+        { status: 403 },
+      );
     }
 
     const portfolioItems = await prisma.portfolioItem.findMany({

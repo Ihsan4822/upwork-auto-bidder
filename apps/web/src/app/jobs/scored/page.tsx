@@ -31,20 +31,37 @@ interface ScoredJobItem {
 export default function ScoredJobsPage() {
   const [scores, setScores] = useState<ScoredJobItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/jobs/scored')
-      .then((res) => res.json())
-      .then((data) => {
-        setScores(data.scores || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetchScoredJobs();
   }, []);
+
+  async function fetchScoredJobs() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/jobs/scored');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Failed to load scored jobs (Status ${res.status})`);
+      }
+      const data = await res.json();
+      setScores(data.scores || []);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to load scored jobs. Please check your connection and try again.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Scored Jobs (Module 3)</h2>
           <p className="text-sm text-slate-600 mt-1">
@@ -52,119 +69,137 @@ export default function ScoredJobsPage() {
             and timing.
           </p>
         </div>
-        <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full font-medium">
-          {scores.length} jobs evaluated
-        </span>
+        {!error && (
+          <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full font-medium">
+            {scores.length} jobs evaluated
+          </span>
+        )}
       </div>
 
-      {loading ? (
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-5 text-center space-y-3">
+          <p className="text-sm font-semibold text-red-800">{error}</p>
+          <button
+            type="button"
+            onClick={fetchScoredJobs}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow-sm transition-colors"
+          >
+            Retry Loading Scored Jobs
+          </button>
+        </div>
+      )}
+
+      {loading && !error ? (
         <div className="bg-white rounded-lg border border-slate-200 p-8 text-center text-sm text-slate-500">
           Loading scored jobs...
         </div>
-      ) : scores.length === 0 ? (
+      ) : !loading && !error && scores.length === 0 ? (
         <div className="bg-white rounded-lg border border-slate-200 p-8 text-center text-sm text-slate-600">
           No jobs scored yet.
         </div>
       ) : (
-        <div className="space-y-5">
-          {scores.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center space-x-2.5">
-                    <span
-                      className={`text-xs px-2.5 py-1 rounded font-bold tracking-wide uppercase ${
-                        item.label === 'APPLY_PLUS_BOOST'
-                          ? 'bg-purple-100 text-purple-800 border border-purple-200'
+        !loading &&
+        !error && (
+          <div className="space-y-5">
+            {scores.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`text-xs px-2.5 py-1 rounded font-bold tracking-wide uppercase ${
+                          item.label === 'APPLY_PLUS_BOOST'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : item.label === 'APPLY'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        {item.label === 'APPLY_PLUS_BOOST'
+                          ? '★ APPLY + BOOST'
                           : item.label === 'APPLY'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-700 border border-slate-200'
-                      }`}
-                    >
-                      {item.label === 'APPLY_PLUS_BOOST'
-                        ? '★ APPLY + BOOST'
-                        : item.label === 'APPLY'
-                          ? '✓ APPLY'
-                          : '✕ SKIP'}
-                    </span>
-                    <span className="text-sm font-bold text-slate-700">
-                      Score: {item.score}/100
-                    </span>
-                    <span className="text-xs text-slate-400">({item.modelName})</span>
+                            ? '✓ APPLY'
+                            : '✕ SKIP'}
+                      </span>
+                      <span className="text-sm font-bold text-slate-700">
+                        Score: {item.score}/100
+                      </span>
+                      <span className="text-xs text-slate-400">({item.modelName})</span>
+                    </div>
+
+                    <h3 className="text-base font-semibold text-slate-900">
+                      {item.job.title || 'Untitled Job'}
+                    </h3>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      <span>ID: {item.job.upworkJobId}</span>
+                      <span>•</span>
+                      <span>{item.job.clientCountry || 'Country Not Available'}</span>
+                      <span>•</span>
+                      <span>
+                        Spend:{' '}
+                        {item.job.clientTotalSpend !== null
+                          ? `$${item.job.clientTotalSpend}`
+                          : 'Not Available'}
+                      </span>
+                      <span>•</span>
+                      <span>
+                        Hire Rate:{' '}
+                        {item.job.clientHireRate !== null
+                          ? `${(item.job.clientHireRate * 100).toFixed(0)}%`
+                          : 'Not Available'}
+                      </span>
+                      <span>•</span>
+                      <span>
+                        Proposals:{' '}
+                        {item.job.proposalCount !== null ? item.job.proposalCount : 'Not Available'}
+                      </span>
+                    </div>
                   </div>
 
-                  <h3 className="text-base font-semibold text-slate-900 mt-2">
-                    {item.job.title || 'Untitled Job'}
-                  </h3>
-
-                  <div className="flex items-center space-x-3 text-xs text-slate-500 mt-1">
-                    <span>ID: {item.job.upworkJobId}</span>
-                    <span>•</span>
-                    <span>{item.job.clientCountry || 'Country Not Available'}</span>
-                    <span>•</span>
-                    <span>
-                      Spend:{' '}
-                      {item.job.clientTotalSpend !== null
-                        ? `$${item.job.clientTotalSpend}`
-                        : 'Not Available'}
-                    </span>
-                    <span>•</span>
-                    <span>
-                      Hire Rate:{' '}
-                      {item.job.clientHireRate !== null
-                        ? `${(item.job.clientHireRate * 100).toFixed(0)}%`
-                        : 'Not Available'}
-                    </span>
-                    <span>•</span>
-                    <span>
-                      Proposals:{' '}
-                      {item.job.proposalCount !== null ? item.job.proposalCount : 'Not Available'}
-                    </span>
+                  <div className="sm:text-right shrink-0">
+                    {item.job.jobUrl && (
+                      <a
+                        href={item.job.jobUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-emerald-700 font-medium hover:underline block"
+                      >
+                        Open on Upwork ↗
+                      </a>
+                    )}
+                    {item.label !== 'SKIP' && (
+                      <Link
+                        href="/queue"
+                        className="inline-block mt-2 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded transition-colors"
+                      >
+                        View in Queue →
+                      </Link>
+                    )}
                   </div>
                 </div>
 
-                <div className="text-right">
-                  {item.job.jobUrl && (
-                    <a
-                      href={item.job.jobUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-emerald-700 font-medium hover:underline block"
-                    >
-                      Open on Upwork ↗
-                    </a>
-                  )}
-                  {item.label !== 'SKIP' && (
-                    <Link
-                      href="/queue"
-                      className="inline-block mt-2 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded transition-colors"
-                    >
-                      View in Queue →
-                    </Link>
-                  )}
+                {/* Reasons List */}
+                <div className="bg-slate-50 rounded-md p-4 border border-slate-100">
+                  <p className="text-xs font-bold uppercase text-slate-600 tracking-wider mb-2">
+                    AI Scoring Reasons ({item.reasons.length}):
+                  </p>
+                  <ul className="space-y-1.5 text-xs text-slate-700">
+                    {item.reasons.map((reason, i) => (
+                      <li key={i} className="flex items-start space-x-2">
+                        <span className="text-slate-400 font-bold">•</span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
-
-              {/* Reasons List */}
-              <div className="bg-slate-50 rounded-md p-4 border border-slate-100">
-                <p className="text-xs font-bold uppercase text-slate-600 tracking-wider mb-2">
-                  AI Scoring Reasons ({item.reasons.length}):
-                </p>
-                <ul className="space-y-1.5 text-xs text-slate-700">
-                  {item.reasons.map((reason, i) => (
-                    <li key={i} className="flex items-start space-x-2">
-                      <span className="text-slate-400 font-bold">•</span>
-                      <span>{reason}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

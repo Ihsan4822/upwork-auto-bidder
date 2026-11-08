@@ -38,19 +38,28 @@ export default function AnalyticsPage() {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [submittedJobs, setSubmittedJobs] = useState<SubmittedJobItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [savingJobId, setSavingJobId] = useState<string | null>(null);
   const [formInputs, setFormInputs] = useState<
     Record<string, { connects: number; viewed: boolean; replied: boolean; notes: string }>
   >({});
-  const [alertMsg, setAlertMsg] = useState<string | null>(null);
+  const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchData();
   }, []);
 
   async function fetchData() {
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/analytics');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Failed to load analytics (Status ${res.status})`);
+      }
       const data = await res.json();
       setSummary(data.summary);
       setSubmittedJobs(data.submittedJobs || []);
@@ -69,8 +78,13 @@ export default function AnalyticsPage() {
         };
       }
       setFormInputs(initial);
-      setLoading(false);
-    } catch {
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to load analytics data. Please check your connection and try again.',
+      );
+    } finally {
       setLoading(false);
     }
   }
@@ -95,11 +109,23 @@ export default function AnalyticsPage() {
       });
 
       if (res.ok) {
-        setAlertMsg('Manual tracking entry updated successfully!');
+        setAlertMsg({ type: 'success', text: 'Manual tracking entry updated successfully!' });
         await fetchData();
+      } else {
+        const data = await res.json().catch(() => null);
+        setAlertMsg({
+          type: 'error',
+          text: data?.error || `Failed to save tracking entry (Status ${res.status}).`,
+        });
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      setAlertMsg({
+        type: 'error',
+        text:
+          err instanceof Error
+            ? err.message
+            : 'A network error occurred while saving tracking data.',
+      });
     } finally {
       setSavingJobId(null);
     }
@@ -126,13 +152,38 @@ export default function AnalyticsPage() {
       </div>
 
       {alertMsg && (
-        <div className="p-4 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-          {alertMsg}
+        <div
+          className={`p-4 rounded-md text-sm border ${
+            alertMsg.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          }`}
+        >
+          {alertMsg.text}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-5 text-center space-y-3">
+          <p className="text-sm font-semibold text-red-800">{error}</p>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow-sm transition-colors"
+          >
+            Retry Loading Analytics
+          </button>
+        </div>
+      )}
+
+      {loading && !error && (
+        <div className="bg-white rounded-lg border border-slate-200 p-8 text-center text-sm text-slate-500">
+          Loading analytics metrics...
         </div>
       )}
 
       {/* Funnel Pipeline Grid */}
-      {summary && (
+      {!loading && !error && summary && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm text-center">
@@ -176,7 +227,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Key Rates Card */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Client View Rate
@@ -231,115 +282,115 @@ export default function AnalyticsPage() {
       )}
 
       {/* Manual Entry Section */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-base font-bold text-slate-900">Manual Submission Tracker</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            After submitting proposals manually on Upwork, record your Connects spent and whether
-            the client viewed or replied below.
-          </p>
-        </div>
+      {!loading && !error && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Manual Submission Tracker</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              After submitting proposals manually on Upwork, record your Connects spent and whether
+              the client viewed or replied below.
+            </p>
+          </div>
 
-        {loading ? (
-          <p className="text-xs text-slate-500">Loading submitted jobs...</p>
-        ) : submittedJobs.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-500 bg-slate-50 rounded">
-            No proposals have been approved or marked submitted yet.
-            <div className="mt-2">
-              <Link href="/queue" className="text-emerald-700 font-semibold hover:underline">
-                Go to Review Queue →
-              </Link>
+          {submittedJobs.length === 0 ? (
+            <div className="text-center py-6 text-xs text-slate-500 bg-slate-50 rounded">
+              No proposals have been approved or marked submitted yet.
+              <div className="mt-2">
+                <Link href="/queue" className="text-emerald-700 font-semibold hover:underline">
+                  Go to Review Queue →
+                </Link>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-xs">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium text-slate-500">Job</th>
-                  <th className="px-3 py-2 text-left font-medium text-slate-500">Connects Spent</th>
-                  <th className="px-3 py-2 text-center font-medium text-slate-500">Viewed?</th>
-                  <th className="px-3 py-2 text-center font-medium text-slate-500">Replied?</th>
-                  <th className="px-3 py-2 text-left font-medium text-slate-500">Notes</th>
-                  <th className="px-3 py-2 text-right font-medium text-slate-500">Save</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {submittedJobs.map((job) => {
-                  const input = formInputs[job.id] || {
-                    connects: 0,
-                    viewed: false,
-                    replied: false,
-                    notes: '',
-                  };
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-xs">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-slate-500">Job</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-500">Connects Spent</th>
+                    <th className="px-3 py-2 text-center font-medium text-slate-500">Viewed?</th>
+                    <th className="px-3 py-2 text-center font-medium text-slate-500">Replied?</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-500">Notes</th>
+                    <th className="px-3 py-2 text-right font-medium text-slate-500">Save</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {submittedJobs.map((job) => {
+                    const input = formInputs[job.id] || {
+                      connects: 0,
+                      viewed: false,
+                      replied: false,
+                      notes: '',
+                    };
 
-                  return (
-                    <tr key={job.id} className="hover:bg-slate-50/50">
-                      <td className="px-3 py-3 max-w-xs">
-                        <p className="font-semibold text-slate-900 truncate">
-                          {job.title || 'Untitled'}
-                        </p>
-                        <p className="text-slate-400 text-[10px]">ID: {job.upworkJobId}</p>
-                      </td>
+                    return (
+                      <tr key={job.id} className="hover:bg-slate-50/50">
+                        <td className="px-3 py-3 max-w-xs">
+                          <p className="font-semibold text-slate-900 truncate">
+                            {job.title || 'Untitled'}
+                          </p>
+                          <p className="text-slate-400 text-[10px]">ID: {job.upworkJobId}</p>
+                        </td>
 
-                      <td className="px-3 py-3 w-32">
-                        <input
-                          type="number"
-                          min="0"
-                          value={input.connects}
-                          onChange={(e) =>
-                            handleInputChange(job.id, 'connects', parseInt(e.target.value) || 0)
-                          }
-                          className="w-20 border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
-                        />
-                      </td>
+                        <td className="px-3 py-3 w-32">
+                          <input
+                            type="number"
+                            min="0"
+                            value={input.connects}
+                            onChange={(e) =>
+                              handleInputChange(job.id, 'connects', parseInt(e.target.value) || 0)
+                            }
+                            className="w-20 border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
+                          />
+                        </td>
 
-                      <td className="px-3 py-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={input.viewed}
-                          onChange={(e) => handleInputChange(job.id, 'viewed', e.target.checked)}
-                          className="w-4 h-4 text-emerald-600 rounded border-slate-300"
-                        />
-                      </td>
+                        <td className="px-3 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={input.viewed}
+                            onChange={(e) => handleInputChange(job.id, 'viewed', e.target.checked)}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300"
+                          />
+                        </td>
 
-                      <td className="px-3 py-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={input.replied}
-                          onChange={(e) => handleInputChange(job.id, 'replied', e.target.checked)}
-                          className="w-4 h-4 text-emerald-600 rounded border-slate-300"
-                        />
-                      </td>
+                        <td className="px-3 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={input.replied}
+                            onChange={(e) => handleInputChange(job.id, 'replied', e.target.checked)}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300"
+                          />
+                        </td>
 
-                      <td className="px-3 py-3">
-                        <input
-                          type="text"
-                          value={input.notes}
-                          onChange={(e) => handleInputChange(job.id, 'notes', e.target.value)}
-                          placeholder="e.g. Client requested call"
-                          className="w-full border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
-                        />
-                      </td>
+                        <td className="px-3 py-3">
+                          <input
+                            type="text"
+                            value={input.notes}
+                            onChange={(e) => handleInputChange(job.id, 'notes', e.target.value)}
+                            placeholder="e.g. Client requested call"
+                            className="w-full border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                          />
+                        </td>
 
-                      <td className="px-3 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleSaveTracking(job.id)}
-                          disabled={savingJobId === job.id}
-                          className="px-3 py-1 bg-slate-900 hover:bg-black text-white text-[11px] font-semibold rounded transition-colors"
-                        >
-                          {savingJobId === job.id ? 'Saving...' : 'Save'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveTracking(job.id)}
+                            disabled={savingJobId === job.id}
+                            className="px-3 py-1 bg-slate-900 hover:bg-black text-white text-[11px] font-semibold rounded transition-colors disabled:opacity-50"
+                          >
+                            {savingJobId === job.id ? 'Saving...' : 'Save'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

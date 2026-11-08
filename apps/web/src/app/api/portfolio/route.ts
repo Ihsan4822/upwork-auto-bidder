@@ -77,3 +77,101 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
+  const { user } = sessionResult;
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ error: 'Portfolio item ID is required' }, { status: 400 });
+  }
+
+  try {
+    const existingItem = await prisma.portfolioItem.findUnique({
+      where: { id },
+      include: {
+        profile: {
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Portfolio item not found' }, { status: 404 });
+    }
+
+    if (existingItem.profile.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to delete this portfolio item' },
+        { status: 403 },
+      );
+    }
+
+    await prisma.portfolioItem.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: 'Portfolio item deleted successfully' });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to delete portfolio item' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const sessionResult = await requireSession(request);
+  if (sessionResult.errorResponse) {
+    return sessionResult.errorResponse;
+  }
+
+  const { user } = sessionResult;
+
+  try {
+    const body = await request.json();
+    const { id, isActive } = body;
+
+    if (!id || typeof isActive !== 'boolean') {
+      return NextResponse.json({ error: 'ID and isActive boolean are required' }, { status: 400 });
+    }
+
+    const existingItem = await prisma.portfolioItem.findUnique({
+      where: { id },
+      include: {
+        profile: {
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Portfolio item not found' }, { status: 404 });
+    }
+
+    if (existingItem.profile.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to modify this portfolio item' },
+        { status: 403 },
+      );
+    }
+
+    const updated = await prisma.portfolioItem.update({
+      where: { id },
+      data: { isActive },
+    });
+
+    return NextResponse.json({ item: updated });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to update portfolio item' },
+      { status: 500 },
+    );
+  }
+}

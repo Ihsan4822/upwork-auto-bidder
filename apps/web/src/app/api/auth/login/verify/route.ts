@@ -50,7 +50,18 @@ export async function GET(request: NextRequest) {
     // A4: Create session
     const { rawSessionToken, expiresAt } = await createSession(user.id);
 
-    const response = NextResponse.redirect(`${appUrl}/queue`);
+    let redirectUrl = `${appUrl}/queue`;
+    const nextParam = searchParams.get('next');
+    if (
+      nextParam &&
+      nextParam.startsWith('/') &&
+      !nextParam.startsWith('//') &&
+      !nextParam.startsWith('/\\')
+    ) {
+      redirectUrl = `${appUrl}${nextParam}`;
+    }
+
+    const response = NextResponse.redirect(redirectUrl);
     setSessionCookie(response, rawSessionToken, expiresAt);
     return response;
   } catch {
