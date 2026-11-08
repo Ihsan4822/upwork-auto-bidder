@@ -66,8 +66,9 @@
    - Narrowed dot check to regex matching standard static file extensions.
 8. Verify Route Same-Origin Next Parameter: PASS
    - Validated `next` query parameter; redirects to valid relative path or falls back to `/queue`.
-9. Portfolio Sample Deletion / Deactivation: PASS
+9. Portfolio Sample Deletion / Deactivation with Profile Ownership: PASS
    - Added DELETE and PATCH (isActive toggle) endpoints to `/api/portfolio`.
+   - Verified portfolio item profile belongs to session user (`existingItem.profile.userId === user.id`); returns 403 Forbidden on mismatch.
    - Added Delete and Toggle Active buttons on portfolio page.
 10. Queue Actions Profile Ownership Authorization: PASS
     - Verified `job.profile.userId === user.id` in action and detail routes, returning 403 Forbidden on mismatch.

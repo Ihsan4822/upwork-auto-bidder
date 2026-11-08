@@ -84,6 +84,7 @@ export async function DELETE(request: NextRequest) {
     return sessionResult.errorResponse;
   }
 
+  const { user } = sessionResult;
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
@@ -92,6 +93,26 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
+    const existingItem = await prisma.portfolioItem.findUnique({
+      where: { id },
+      include: {
+        profile: {
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Portfolio item not found' }, { status: 404 });
+    }
+
+    if (existingItem.profile.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to delete this portfolio item' },
+        { status: 403 },
+      );
+    }
+
     await prisma.portfolioItem.delete({
       where: { id },
     });
@@ -111,12 +132,34 @@ export async function PATCH(request: NextRequest) {
     return sessionResult.errorResponse;
   }
 
+  const { user } = sessionResult;
+
   try {
     const body = await request.json();
     const { id, isActive } = body;
 
     if (!id || typeof isActive !== 'boolean') {
       return NextResponse.json({ error: 'ID and isActive boolean are required' }, { status: 400 });
+    }
+
+    const existingItem = await prisma.portfolioItem.findUnique({
+      where: { id },
+      include: {
+        profile: {
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Portfolio item not found' }, { status: 404 });
+    }
+
+    if (existingItem.profile.userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to modify this portfolio item' },
+        { status: 403 },
+      );
     }
 
     const updated = await prisma.portfolioItem.update({
