@@ -49,7 +49,12 @@ export async function getCurrentUser(request: Request | NextRequest): Promise<Us
     }
 
     if (new Date() >= session.expiresAt) {
-      // Expired session
+      // Expired session - asynchronously clean up expired rows
+      prisma.session
+        .deleteMany({
+          where: { expiresAt: { lte: new Date() } },
+        })
+        .catch(() => {});
       return null;
     }
 

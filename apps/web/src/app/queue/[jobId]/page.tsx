@@ -61,28 +61,40 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJob();
   }, [jobId]);
 
   async function fetchJob() {
+    setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch(`/api/queue/jobs/${jobId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setJob(data.job);
-        setPortfolioList(data.portfolioItems || []);
-
-        const latestDraft = data.job.drafts[0];
-        if (latestDraft) {
-          setSelectedVersion(latestDraft.version);
-          setEditableText(latestDraft.draftText);
-          setSelectedPortfolioId(latestDraft.portfolioItemId || '');
-        }
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Failed to load job details (Status ${res.status})`);
       }
-    } catch (err) {
-      console.error('Failed to load job details', err);
+      const data = await res.json();
+      setJob(data.job);
+      setPortfolioList(data.portfolioItems || []);
+
+      const latestDraft = data.job.drafts[0];
+      if (latestDraft) {
+        setSelectedVersion(latestDraft.version);
+        setEditableText(latestDraft.draftText);
+        setSelectedPortfolioId(latestDraft.portfolioItemId || '');
+      }
+    } catch (err: unknown) {
+      setFetchError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load proposal review. Please check your connection and try again.',
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -132,13 +144,47 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
     }
   }
 
-  function copyProposalToClipboard() {
-    navigator.clipboard.writeText(editableText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  async function copyProposalToClipboard() {
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard API is not supported in this browser environment.');
+      }
+      await navigator.clipboard.writeText(editableText);
+      setCopied(true);
+      setMessage('Proposal text copied to clipboard!');
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err: unknown) {
+      setMessage(
+        `Failed to copy proposal: ${err instanceof Error ? err.message : 'Permission denied'}`,
+      );
+    }
   }
 
-  if (!job) {
+  if (fetchError) {
+    return (
+      <div className="max-w-2xl mx-auto my-12 bg-red-50 border border-red-200 rounded-lg p-8 text-center space-y-4">
+        <h3 className="text-base font-bold text-red-900">Unable to Load Proposal Review</h3>
+        <p className="text-xs text-red-700 leading-relaxed">{fetchError}</p>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={fetchJob}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow-sm transition-colors"
+          >
+            Retry Loading Proposal
+          </button>
+          <Link
+            href="/queue"
+            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded hover:bg-slate-50 transition-colors"
+          >
+            ← Back to Queue
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading || !job) {
     return <div className="p-8 text-center text-sm text-slate-500">Loading proposal review...</div>;
   }
 
@@ -148,7 +194,7 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Top Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Link href="/queue" className="text-xs font-semibold text-emerald-700 hover:underline">
           ← Back to Review Queue
         </Link>
@@ -176,7 +222,7 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
       {/* APPROVED BANNER & MANUAL SUBMIT ACTION */}
       {job.status === 'APPROVED' && (
         <div className="bg-emerald-50 border-2 border-emerald-500 rounded-lg p-6 space-y-4">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-emerald-950 flex items-center space-x-2">
                 <span>✓</span>
@@ -189,7 +235,7 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
               </p>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
               <button
                 type="button"
                 onClick={copyProposalToClipboard}
@@ -226,12 +272,12 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
 
       {/* Job Details Card */}
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-900 leading-snug">
               {job.title || 'Untitled Job'}
             </h2>
-            <div className="flex items-center space-x-3 text-xs text-slate-500 mt-1">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
               <span>ID: {job.upworkJobId}</span>
               <span>•</span>
               <span>Country: {job.clientCountry || 'Not Available'}</span>
@@ -254,7 +300,7 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
               href={job.jobUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-emerald-700 font-semibold hover:underline"
+              className="text-xs text-emerald-700 font-semibold hover:underline shrink-0"
             >
               Open on Upwork ↗
             </a>
@@ -271,8 +317,8 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
       {/* AI Score & Reasoning */}
       {score && (
         <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider bg-slate-900 text-white px-2.5 py-1 rounded">
                 AI Score: {score.score}/100 ({score.label})
               </span>
@@ -293,11 +339,11 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
 
       {/* Proposal Draft Editor */}
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h3 className="text-base font-bold text-slate-900">Proposal Draft</h3>
             {/* Version Selectors */}
-            <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded">
               {job.drafts.map((d) => (
                 <button
                   key={d.id}
@@ -330,7 +376,7 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
         </div>
 
         {/* Portfolio Link Matcher */}
-        <div className="bg-slate-50 p-3.5 rounded border border-slate-200 flex items-center justify-between text-xs">
+        <div className="bg-slate-50 p-3.5 rounded border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div>
             <span className="font-semibold text-slate-700">Suggested Portfolio Sample:</span>
             <select
@@ -366,8 +412,8 @@ export default function SingleJobReviewPage({ params }: { params: Promise<{ jobI
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => executeAction('SAVE_DRAFT_VERSION')}

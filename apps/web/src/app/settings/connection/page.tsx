@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { getPlainLanguageConsentText, ALLOWED_OAUTH_SCOPES } from '@upwork-bidder/core';
 
 interface ConnectionState {
-  status: 'CONNECTED' | 'DISCONNECTED' | 'SCOPE_CHANGED' | 'LOADING';
+  status: 'CONNECTED' | 'DISCONNECTED' | 'SCOPE_CHANGED' | 'LOADING' | 'UNKNOWN';
   lastConnectedAt?: string | null;
   scopesGranted?: string[];
   warningMessage?: string;
@@ -14,7 +14,7 @@ interface ConnectionState {
 export default function UpworkConnectionPage() {
   const consent = getPlainLanguageConsentText();
   const [connection, setConnection] = useState<ConnectionState>({
-    status: 'DISCONNECTED',
+    status: 'LOADING',
     registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
   });
   const [actionLoading, setActionLoading] = useState(false);
@@ -43,7 +43,8 @@ export default function UpworkConnectionPage() {
 
   async function fetchStatus() {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
+    // Raised to 10 seconds to accommodate slow server cold starts
+    const timer = setTimeout(() => controller.abort(), 10000);
 
     try {
       const res = await fetch('/api/auth/upwork/status', {
@@ -54,10 +55,12 @@ export default function UpworkConnectionPage() {
         const data = await res.json();
         setConnection(data);
       } else {
-        setConnection((prev) => ({ ...prev, status: 'DISCONNECTED' }));
+        // Show unknown state instead of a wrong DISCONNECTED on slow cold starts or errors
+        setConnection((prev) => ({ ...prev, status: 'UNKNOWN' }));
       }
     } catch {
-      setConnection((prev) => ({ ...prev, status: 'DISCONNECTED' }));
+      // Abort or network failure: show unknown state
+      setConnection((prev) => ({ ...prev, status: 'UNKNOWN' }));
     }
   }
 
@@ -101,13 +104,16 @@ export default function UpworkConnectionPage() {
       const res = await fetch('/api/auth/upwork/disconnect', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
-        setConnection((prev) => ({ ...prev, status: 'DISCONNECTED', scopesGranted: [] }));
         setFeedbackMessage({
           type: 'success',
-          text: 'Upwork connection revoked and OAuth token deleted immediately.',
+          text: 'Upwork disconnected. Stored tokens deleted.',
         });
+        await fetchStatus();
       } else {
-        setFeedbackMessage({ type: 'error', text: data.error || 'Failed to disconnect.' });
+        setFeedbackMessage({
+          type: 'error',
+          text: data.error || 'Failed to disconnect Upwork account',
+        });
       }
     } catch (err: unknown) {
       setFeedbackMessage({
@@ -121,22 +127,20 @@ export default function UpworkConnectionPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Page Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">Upwork MCP Connection (Step 2)</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Upwork MCP Connection (Module 1)</h2>
         <p className="text-sm text-slate-600 mt-1">
-          Connect your Upwork profile via the official Upwork MCP server using OAuth 2.1 read-only
-          permissions.
+          OAuth 2.1 authentication with PKCE for Upwork MCP access. Grants strictly read-only job
+          discovery permissions.
         </p>
       </div>
 
-      {/* Feedback Alert */}
       {feedbackMessage && (
         <div
-          className={`p-4 rounded-md border text-sm ${
-            feedbackMessage.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-800'
+          className={`p-4 rounded-md text-sm border ${
+            feedbackMessage.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
           }`}
         >
           {feedbackMessage.text}
@@ -144,29 +148,36 @@ export default function UpworkConnectionPage() {
       )}
 
       {/* Connection Status Card */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase font-semibold text-slate-500 tracking-wider">
-              Current Status
-            </p>
-            <div className="flex items-center space-x-2 mt-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase font-semibold text-slate-500 tracking-wider">
+                Connection Status:
+              </span>
               <span
-                className={`w-3 h-3 rounded-full ${
+                className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${
                   connection.status === 'CONNECTED'
-                    ? 'bg-emerald-500'
+                    ? 'bg-emerald-100 text-emerald-800'
                     : connection.status === 'SCOPE_CHANGED'
-                      ? 'bg-amber-500'
-                      : 'bg-slate-300'
+                      ? 'bg-amber-100 text-amber-800'
+                      : connection.status === 'UNKNOWN'
+                        ? 'bg-slate-200 text-slate-700'
+                        : connection.status === 'LOADING'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-slate-100 text-slate-600'
                 }`}
-              />
-              <span className="text-lg font-bold text-slate-900">
-                {connection.status === 'CONNECTED' && 'Connected (Read-Only)'}
-                {connection.status === 'DISCONNECTED' && 'Disconnected'}
-                {connection.status === 'SCOPE_CHANGED' && 'Scope Change Detected (Locked)'}
-                {connection.status === 'LOADING' && 'Checking status...'}
+              >
+                {connection.status === 'UNKNOWN'
+                  ? 'Unknown (Cold Start / Retry)'
+                  : connection.status}
               </span>
             </div>
+
+            <p className="text-sm font-semibold text-slate-900 mt-2">
+              Registered App: {connection.registeredAppName}
+            </p>
+
             {connection.lastConnectedAt && (
               <p className="text-xs text-slate-400 mt-1">
                 Last connected: {new Date(connection.lastConnectedAt).toLocaleString()}
@@ -174,7 +185,17 @@ export default function UpworkConnectionPage() {
             )}
           </div>
 
-          <div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {connection.status === 'UNKNOWN' && (
+              <button
+                type="button"
+                onClick={fetchStatus}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded border border-slate-300 transition-colors"
+              >
+                Retry Status Check
+              </button>
+            )}
+
             {connection.status === 'CONNECTED' ? (
               <button
                 type="button"
@@ -271,7 +292,7 @@ export default function UpworkConnectionPage() {
           <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
             Approved Read-Only Scopes ({ALLOWED_OAUTH_SCOPES.length})
           </h4>
-          <div className="bg-white rounded border border-slate-200 overflow-hidden text-xs">
+          <div className="bg-white rounded border border-slate-200 overflow-x-auto text-xs">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>

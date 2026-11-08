@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 const RequestSchema = z.object({
   email: z.string().trim().email(),
+  next: z.string().optional(),
 });
 
 const GENERIC_SUCCESS_RESPONSE = {
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
   }
 
   const email = parseResult.data.email.toLowerCase();
+  const nextTarget = parseResult.data.next;
 
   // Read allowed emails list from config/env
   const allowedEmailsRaw = process.env.LOGIN_ALLOWED_EMAILS || '';
@@ -81,14 +83,22 @@ export async function POST(request: NextRequest) {
     });
 
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
-    const magicLink = `${appUrl}/api/auth/login/verify?token=${rawToken}`;
+    let magicLink = `${appUrl}/api/auth/login/verify?token=${rawToken}`;
+    if (
+      nextTarget &&
+      nextTarget.startsWith('/') &&
+      !nextTarget.startsWith('//') &&
+      !nextTarget.startsWith('/\\')
+    ) {
+      magicLink += `&next=${encodeURIComponent(nextTarget)}`;
+    }
 
     // A2: Email delivery via Resend or local dev log
     const resendKey = process.env.RESEND_API_KEY;
     if (resendKey) {
+      const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
       try {
-        const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
-        await fetch('https://api.resend.com/emails', {
+        const resendRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -101,8 +111,23 @@ export async function POST(request: NextRequest) {
             html: `<p>Click the link below to sign in:</p><p><a href="${magicLink}">Sign in to Upwork Proposal Assistant</a></p><p>This link expires in ${ttlMinutes} minutes and can only be used once.</p>`,
           }),
         });
-      } catch {
-        console.error('[Auth] Failed to send magic link email via Resend API.');
+
+        if (!resendRes.ok) {
+          const resendBody = await resendRes.text();
+          console.error(
+            `[Auth] Resend API error (status ${resendRes.status}): ${resendBody}`,
+          );
+          return NextResponse.json(
+            { error: `Email delivery failed: Resend returned status ${resendRes.status}` },
+            { status: 502 },
+          );
+        }
+      } catch (err: unknown) {
+        console.error('[Auth] Failed to send magic link email via Resend API:', err);
+        return NextResponse.json(
+          { error: 'Email delivery failed: unable to contact email service' },
+          { status: 502 },
+        );
       }
     } else {
       if (process.env.NODE_ENV === 'development' && process.env.MAGIC_LINK_DEV_LOG === 'true') {

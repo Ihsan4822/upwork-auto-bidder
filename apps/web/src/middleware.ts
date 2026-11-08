@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { prisma } from '@upwork-bidder/db';
-import { hashToken } from '@upwork-bidder/core';
 
 /**
  * Public routes that do not require an active app_session cookie:
  * - /login (Login page)
  * - /api/auth/login/request (Request magic link)
  * - /api/auth/login/verify (Verify magic link)
+ * - /api/auth/upwork/client-metadata.json (Upwork client metadata)
  */
 const PUBLIC_PATHS = [
   '/login',
@@ -16,15 +15,17 @@ const PUBLIC_PATHS = [
   '/api/auth/upwork/client-metadata.json',
 ];
 
+const STATIC_EXT_REGEX = /\.(ico|png|jpg|jpeg|svg|css|js|woff|woff2|ttf|eot|webp|json|txt|xml|map)$/i;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow static files, Next.js internal bundles, and favicon
+  // Allow static files, Next.js internal bundles, and known static extensions
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
     pathname === '/favicon.ico' ||
-    pathname.includes('.')
+    STATIC_EXT_REGEX.test(pathname)
   ) {
     return NextResponse.next();
   }
@@ -34,7 +35,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check presence of session cookie
+  // Check presence and length of session cookie (32+ chars)
   const sessionCookie = request.cookies.get('app_session');
   const rawToken = sessionCookie?.value;
 
@@ -46,36 +47,10 @@ export async function middleware(request: NextRequest) {
   // Clearly marked test bypass, strictly active only when NODE_ENV === 'test'.
   // Allows Playwright E2E tests to run against a real database-backed dev server
   // without failing on the mock session token.
-  // In production and development (NODE_ENV !== 'test'), every request MUST verify against prisma.session.
   if (
     process.env.NODE_ENV === 'test' &&
     rawToken === 'mock_session_token_for_playwright_e2e_testing_32chars'
   ) {
-    return NextResponse.next();
-  }
-
-  // Harden: verify session exists in the database and is not expired.
-  // A forged 32+ char cookie with no matching DB row is rejected here.
-  try {
-    const tokenHash = hashToken(rawToken);
-    const session = await prisma.session.findUnique({
-      where: { sessionTokenHash: tokenHash },
-      select: { expiresAt: true },
-    });
-
-    if (!session || new Date() >= session.expiresAt) {
-      return unauthorizedResponse(request, pathname);
-    }
-  } catch {
-    // DB unavailable - fail open for page routes (let the route handler reject),
-    // but fail closed for API routes.
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Session verification unavailable' },
-        { status: 401 },
-      );
-    }
-    // For pages, allow through so the route-level requireSession() handles it.
     return NextResponse.next();
   }
 
@@ -84,7 +59,7 @@ export async function middleware(request: NextRequest) {
 
 function unauthorizedResponse(request: NextRequest, pathname: string): NextResponse {
   if (pathname.startsWith('/api/')) {
-    return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
+    return NextResponse.json({ error: 'Session required' }, { status: 401 });
   }
   const loginUrl = new URL('/login', request.url);
   return NextResponse.redirect(loginUrl);

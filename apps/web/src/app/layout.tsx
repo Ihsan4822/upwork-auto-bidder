@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import Link from 'next/link';
 import HeaderAuth from '../components/HeaderAuth';
+import HeaderNav from '../components/HeaderNav';
 
 export const metadata: Metadata = {
   title: 'Upwork Auto Bidder - Assistant',
@@ -12,64 +12,23 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-slate-50 text-slate-900">
-        <header className="border-b border-slate-200 bg-white sticky top-0 z-10 shadow-sm">
+      <body className="min-h-screen bg-slate-50 text-slate-900 overflow-x-clip">
+        <header className="border-b border-slate-200 bg-white sticky top-0 z-10 shadow-sm relative">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <span className="bg-emerald-600 text-white font-bold px-2.5 py-1 rounded text-sm tracking-wide">
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+              <span className="bg-emerald-600 text-white font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded text-xs sm:text-sm tracking-wide shrink-0">
                 UAB
               </span>
-              <div>
-                <h1 className="text-base font-semibold text-slate-900 leading-tight">
+              <div className="min-w-0">
+                <h1 className="text-sm sm:text-base font-semibold text-slate-900 leading-tight truncate">
                   Upwork Proposal Assistant
                 </h1>
-                <p className="text-xs text-slate-500">Internal MVP . Human-Submit Only</p>
+                <p className="text-[10px] sm:text-xs text-slate-500 truncate">Internal MVP . Human-Submit Only</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-6">
-              <nav className="flex items-center space-x-6 text-sm font-medium">
-                <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
-                  Dashboard
-                </Link>
-                <Link
-                  href="/jobs/scored"
-                  className="text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Scored Jobs
-                </Link>
-                <Link
-                  href="/jobs/filtered"
-                  className="text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Filtered Out
-                </Link>
-                <Link
-                  href="/queue"
-                  className="text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Review Queue
-                </Link>
-                <Link
-                  href="/portfolio"
-                  className="text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Portfolio
-                </Link>
-                <Link
-                  href="/analytics"
-                  className="text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Analytics
-                </Link>
-                <Link
-                  href="/settings/connection"
-                  className="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-md hover:bg-emerald-100 transition-colors"
-                >
-                  Upwork Connection
-                </Link>
-              </nav>
-
+            <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
+              <HeaderNav />
               <HeaderAuth />
             </div>
           </div>
