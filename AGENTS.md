@@ -60,7 +60,7 @@ The scope guard test is at `packages/ai/tests/scope-guard.test.ts`.
 
 The allowed MCP tools (read-only job search only):
 
-- Tools whose names match: `search_jobs`, `get_job`, `get_job_details`, `find_jobs`, `list_jobs`
+- Tools whose names match: `search_jobs`, `get_job`, `get_job_details`, `find_jobs`, `list_jobs`, `list_accounts`
 - Any tool variant that reads job postings from the Upwork MCP server
 
 Banned tool patterns (fail the build if any appear in allowlist or config):

@@ -13,7 +13,10 @@ function loadEnv() {
           .join('=')
           .trim()
           .replace(/^["']|["']$/g, '');
-        process.env[key.trim()] = val;
+        const cleanKey = key.trim();
+        if (cleanKey && !process.env[cleanKey]) {
+          process.env[cleanKey] = val;
+        }
       }
     }
   }
@@ -21,9 +24,9 @@ function loadEnv() {
 
 loadEnv();
 
-import { prisma } from '@upwork-bidder/db';
+import { prisma, type Job } from '@upwork-bidder/db';
 import { getValidAccessToken, applyHardFilters } from '@upwork-bidder/core';
-import { UpworkMcpClient, normalizeMcpJob } from '@upwork-bidder/ai';
+import { UpworkMcpClient, normalizeMcpJob, type NormalizedJob } from '@upwork-bidder/ai';
 import { HOURLY_RATE_FLOOR_USD, FIXED_PRICE_FLOOR_USD } from '@upwork-bidder/config';
 
 async function main() {
@@ -59,9 +62,9 @@ async function main() {
   try {
     token = await getValidAccessToken(profile.id, encryptionKey);
     console.log('SUCCESS: Token decrypted and validated successfully via getValidAccessToken().');
-    console.log(`Token starts with: ${token.slice(0, 4)}... (length: ${token.length} chars)`);
-  } catch (err: any) {
-    console.error('FAILED to decrypt/refresh token:', err.message);
+    console.log(`Token validated (length: ${token.length} chars)`);
+  } catch (err: unknown) {
+    console.error('FAILED to decrypt/refresh token:', err instanceof Error ? err.message : String(err));
     throw err;
   }
 
@@ -114,7 +117,7 @@ async function main() {
     draftsCreated: 0,
   };
 
-  const rawJobsFound: any[] = [];
+  const rawJobsFound: NormalizedJob[] = [];
 
   for (const search of searches) {
     console.log(`Polling Upwork MCP for search: "${search.name}" (query: "${search.queryText}")...`);
@@ -126,8 +129,11 @@ async function main() {
       for (const raw of searchResult.jobs) {
         try {
           rawJobsFound.push(normalizeMcpJob(raw));
-        } catch (normErr: any) {
-          console.warn(`  [Normalize Warning] Skipped unparsable job:`, normErr.message);
+        } catch (normErr: unknown) {
+          console.warn(
+            `  [Normalize Warning] Skipped unparsable job:`,
+            normErr instanceof Error ? normErr.message : String(normErr),
+          );
         }
       }
 
@@ -135,13 +141,16 @@ async function main() {
         where: { id: search.id },
         data: { lastPolledAt: new Date() },
       });
-    } catch (pollErr: any) {
-      console.error(`  [Polling Error] Search "${search.name}" failed:`, pollErr.message);
+    } catch (pollErr: unknown) {
+      console.error(
+        `  [Polling Error] Search "${search.name}" failed:`,
+        pollErr instanceof Error ? pollErr.message : String(pollErr),
+      );
     }
   }
 
   // Deduplicate and insert into DB
-  const processedJobs: any[] = [];
+  const processedJobs: Job[] = [];
   for (const job of rawJobsFound) {
     const existing = await prisma.job.findUnique({
       where: { upworkJobId: job.upworkJobId },
@@ -252,7 +261,7 @@ async function main() {
     }
   }
 
-  // ── Step 4: AI Scoring & Draft Status ──────────────────────
+  // ── Step 4: AI Provider & Scoring Check ──────────────────────
   console.log('\n--- Step 4: AI Provider & Scoring Check ---');
   const aiKey = process.env.AI_API_KEY;
   const isRealAiKey = aiKey && !aiKey.startsWith('dummy_') && aiKey.length > 20;
@@ -296,7 +305,7 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch(err => {
-  console.error('Fatal test error:', err);
+main().catch((err: unknown) => {
+  console.error('Fatal test error:', err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
