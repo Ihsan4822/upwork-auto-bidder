@@ -21,7 +21,8 @@ export default async function LoginPage() {
       if (session && new Date() < session.expiresAt) {
         shouldRedirect = true;
       }
-    } catch {
+    } catch (err) {
+      console.error('[LoginPage] Session lookup failed:', err);
       // Database unavailable or query error, allow login form to render
     }
   }

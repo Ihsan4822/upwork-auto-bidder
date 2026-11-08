@@ -12,6 +12,18 @@ const nextConfig = {
   outputFileTracingRoot: path.join(__dirname, '../../'),
   transpilePackages: ['@upwork-bidder/core', '@upwork-bidder/config', '@upwork-bidder/db', '@upwork-bidder/ui'],
   outputFileTracingIncludes: {
+    '/**/*': [
+      '../../node_modules/.pnpm/@prisma+client*/**/*',
+      '../../node_modules/.prisma/**/*',
+    ],
+    '/login': [
+      '../../node_modules/.pnpm/@prisma+client*/**/*',
+      '../../node_modules/.prisma/**/*',
+    ],
+    '/login/**/*': [
+      '../../node_modules/.pnpm/@prisma+client*/**/*',
+      '../../node_modules/.prisma/**/*',
+    ],
     '/api/**/*': [
       '../../node_modules/.pnpm/@prisma+client*/**/*',
       '../../node_modules/.prisma/**/*',
@@ -26,7 +38,7 @@ const nextConfig = {
     if (isServer) {
       config.plugins.push({
         apply(compiler) {
-          compiler.hooks.afterEmit.tap('CopyPrismaEnginePlugin', () => {
+          const copyPrismaEngines = () => {
             try {
               const dbPackageDir = path.resolve(__dirname, '../../packages/db');
               const dbRequire = createRequire(path.join(dbPackageDir, 'package.json'));
@@ -37,6 +49,8 @@ const nextConfig = {
                 const targetDirs = [
                   path.resolve(__dirname, '.next/server/chunks'),
                   path.resolve(__dirname, '.next/server'),
+                  path.resolve(__dirname, '.next/server/app'),
+                  path.resolve(__dirname, '.next/server/app/login'),
                 ];
 
                 const files = fs.readdirSync(prismaEnginesDir);
@@ -53,11 +67,37 @@ const nextConfig = {
                     }
                   }
                 }
+
+                // Also copy to any other directory created under .next/server/app
+                const appDir = path.resolve(__dirname, '.next/server/app');
+                if (fs.existsSync(appDir)) {
+                  const copyToSubdirs = (dir) => {
+                    const entries = fs.readdirSync(dir, { withFileTypes: true });
+                    for (const entry of entries) {
+                      if (entry.isDirectory()) {
+                        const subDir = path.join(dir, entry.name);
+                        for (const file of files) {
+                          if (file.endsWith('.node')) {
+                            fs.copyFileSync(
+                              path.join(prismaEnginesDir, file),
+                              path.join(subDir, file)
+                            );
+                          }
+                        }
+                        copyToSubdirs(subDir);
+                      }
+                    }
+                  };
+                  copyToSubdirs(appDir);
+                }
               }
             } catch (err) {
               console.warn('[Webpack] Could not copy Prisma engine binary:', err);
             }
-          });
+          };
+
+          compiler.hooks.afterEmit.tap('CopyPrismaEnginePlugin', copyPrismaEngines);
+          compiler.hooks.done.tap('CopyPrismaEnginePluginDone', copyPrismaEngines);
         },
       });
     }
