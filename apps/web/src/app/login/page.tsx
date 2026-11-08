@@ -8,6 +8,8 @@ export default async function LoginPage() {
   const cookieStore = await cookies();
   const rawToken = cookieStore.get('app_session')?.value;
 
+  let shouldRedirect = false;
+
   if (rawToken && rawToken.length >= 32) {
     try {
       const tokenHash = hashToken(rawToken);
@@ -17,11 +19,15 @@ export default async function LoginPage() {
       });
 
       if (session && new Date() < session.expiresAt) {
-        redirect('/queue');
+        shouldRedirect = true;
       }
     } catch {
       // Database unavailable or query error, allow login form to render
     }
+  }
+
+  if (shouldRedirect) {
+    redirect('/queue');
   }
 
   return <LoginForm />;
