@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const clientId = `${appUrl}/api/auth/upwork/client-metadata.json`;
+    const clientId = process.env.UPWORK_CLIENT_ID || `${appUrl}/api/auth/upwork/client-metadata.json`;
 
     // 3. Token Exchange using PKCE with client_id metadata document URL
     const params = new URLSearchParams({
@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
       code,
       redirect_uri: redirectUri,
       code_verifier: codeVerifier,
+      resource: 'https://mcp.upwork.com/mcp',
     });
 
     const tokenResponse = await fetch(tokenUrl, {
