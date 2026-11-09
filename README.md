@@ -12,12 +12,14 @@ Upwork himself.** This app never submits anything.
 
 > **The app reads jobs. Farid submits proposals. Always.**
 
-Three job sources feed the review queue. The notification bell jobs come first: Upwork's own
-matched jobs for Farid's profile (the "New job" alerts, fetched with find_jobs smart_search),
-then client invitations (jobs where a client invited Farid directly), then saved searches
-polling the Upwork marketplace on a schedule. Each source is labelled in the queue, and
-invitations sit on top, followed by notification jobs, then search results. Job minimums
-and niche keywords are set on the Criteria Settings page (`/settings/criteria`); the worker
+Three job sources feed the review queue. Each poll cycle fetches in this order: notification
+bell jobs first (Upwork's own matched jobs for Farid's profile, the "New job" alerts, fetched
+with find_jobs smart_search), then client invitations (jobs where a client invited Farid
+directly), then saved searches polling the Upwork marketplace on a schedule. In the queue
+itself the display order is different: invitations sit on top, followed by notification
+jobs, then search results, because a direct invite is the highest-value job. Each source
+is labelled in the queue. Job minimums and niche keywords are set on the Criteria Settings
+page (`/settings/criteria`); the worker
 reads them fresh on every poll cycle, so no restart is needed.
 
 ---
