@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server';
  * - /login (Login page)
  * - /api/auth/login/request (Request magic link)
  * - /api/auth/login/verify (Verify magic link)
+ * - /api/auth/demo (One-click demo login, no email)
  * - /api/auth/upwork/client-metadata.json (Upwork client metadata)
  */
 const PUBLIC_PATHS = [

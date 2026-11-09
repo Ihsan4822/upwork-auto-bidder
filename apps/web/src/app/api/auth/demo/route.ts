@@ -16,8 +16,10 @@ import { DEMO_USER_EMAIL } from '@/lib/demo';
  *   first use if the seed has not run yet, but it has no profile and no
  *   jobs until the demo seed is applied, so the demo shows an empty
  *   queue rather than Farid's data.
- * - Existing demo sessions are deleted first, so repeated demo logins do
- *   not accumulate session rows.
+ * - Demo sessions are NOT deleted on login, so several judges can use
+ *   the demo at the same time. Each session expires on its own
+ *   (SESSION_TTL_DAYS) and expired rows are pruned by the existing
+ *   cleanup in getCurrentUser.
  * - The demo user sees only the demo profile's data because every
  *   business query is scoped to the current user's profile. The demo
  *   profile has no Upwork OAuth tokens, so the worker never fetches real
@@ -34,9 +36,6 @@ export async function POST() {
       update: {},
       create: { email: DEMO_USER_EMAIL },
     });
-
-    // One active demo session at a time; drop any older ones first.
-    await prisma.session.deleteMany({ where: { userId: demoUser.id } });
 
     const { rawSessionToken, expiresAt } = await createSession(demoUser.id);
 
