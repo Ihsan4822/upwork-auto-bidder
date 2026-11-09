@@ -12,9 +12,11 @@ Upwork himself.** This app never submits anything.
 
 > **The app reads jobs. Farid submits proposals. Always.**
 
-Two job sources feed the review queue. Saved searches poll the Upwork marketplace on a
-schedule, and client invitations (jobs where a client invited Farid directly) are fetched
-first each poll cycle and sit on top of the queue with an Invitation badge. Job minimums
+Three job sources feed the review queue. The notification bell jobs come first: Upwork's own
+matched jobs for Farid's profile (the "New job" alerts, fetched with find_jobs smart_search),
+then client invitations (jobs where a client invited Farid directly), then saved searches
+polling the Upwork marketplace on a schedule. Each source is labelled in the queue, and
+invitations sit on top, followed by notification jobs, then search results. Job minimums
 and niche keywords are set on the Criteria Settings page (`/settings/criteria`); the worker
 reads them fresh on every poll cycle, so no restart is needed.
 
@@ -201,7 +203,7 @@ Configured server-side in `.env`:
 ## Running Tests
 
 ```bash
-pnpm test                  # All 160 unit and integration tests (Vitest)
+pnpm test                  # All 164 unit and integration tests (Vitest)
 pnpm test:e2e              # Playwright end-to-end tests
 pnpm guard:scopes          # Scope guard test only (critical — run before every deploy)
 pnpm lint                  # ESLint check

@@ -153,6 +153,12 @@ export default function ReviewQueuePage() {
                           </span>
                         )}
 
+                        {job.source === 'NOTIFICATION' && (
+                          <span className="text-xs px-2 py-0.5 rounded font-bold uppercase bg-sky-100 text-sky-800">
+                            New job
+                          </span>
+                        )}
+
                         {score && (
                           <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
                             Score: {score.score}/100 ({score.label})

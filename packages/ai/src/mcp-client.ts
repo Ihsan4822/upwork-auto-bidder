@@ -412,18 +412,124 @@ export class UpworkMcpClient {
   }
 
   /**
+   * Fetch Upwork's own matched jobs for Farid's profile: the "New job"
+   * notifications in the Upwork bell. Tool invoked: "find_jobs" with action
+   * "smart_search", mode "most_recent". Upwork's own recommender, no query
+   * and no skills needed, it already knows the profile. The matches come
+   * from Upwork's Best Matches and Most Recent feeds, the same ones behind
+   * the Find Work page and the notification bell.
+   *
+   * CORRECTION (2026-11-09): the priority source is this notification feed,
+   * not client invitations. The bell shows "New job" alerts, and "Invites
+   * from clients" is a separate count (0 at the time of the correction).
+   * The method is defensive: on any failure (unknown action, unexpected
+   * shape, HTTP error) it returns an empty list and logs, so the pipeline
+   * continues with the other sources. The first live run must confirm the
+   * action name and response shape; see docs/DECISIONS.md.
+   *
+   * The method only reads. It never accepts, declines, or submits anything.
+   */
+  async listNotificationJobs(): Promise<RawMcpJob[]> {
+    assertMcpToolAllowed('find_jobs');
+
+    if (!this.mcpServerUrl.includes('upwork.com')) {
+      // Mock and test environments have no notification jobs.
+      return [];
+    }
+
+    try {
+      const { sessionId, orgUid } = await this.ensureSession();
+      const response = await fetch(this.mcpServerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          Authorization: `Bearer ${this.token}`,
+          'mcp-session-id': sessionId,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: 'upwork__find_jobs',
+            arguments: {
+              action: 'smart_search',
+              org_uid: orgUid,
+              params: { mode: 'most_recent', limit: 10 },
+            },
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn(
+          `[UpworkMcpClient] listNotificationJobs HTTP ${response.status}, continuing with other sources only.`,
+        );
+        return [];
+      }
+
+      const payload = parseMcpPayload(await response.text());
+      if (payload.error) {
+        console.warn(
+          `[UpworkMcpClient] listNotificationJobs JSON-RPC error: ${payload.error.message || 'unknown'}, continuing with other sources only.`,
+        );
+        return [];
+      }
+
+      const rawContent = payload.result?.content?.[0]?.text;
+      if (!rawContent) return [];
+
+      const parsed: unknown = JSON.parse(rawContent);
+      const items: unknown[] = Array.isArray(parsed)
+        ? parsed
+        : ((parsed as { jobs?: unknown[] }).jobs ??
+          (parsed as { matched_jobs?: unknown[] }).matched_jobs ??
+          []);
+
+      if (items.length > 0) {
+        // Log only the field names of the first item, never values, so the
+        // first live run reveals the real response shape without leaking data.
+        const first = items[0];
+        if (first && typeof first === 'object') {
+          console.log(
+            `[UpworkMcpClient] listNotificationJobs shape: ${Object.keys(first as Record<string, unknown>).join(', ')}`,
+          );
+        }
+      }
+
+      const jobs: RawMcpJob[] = [];
+      for (const item of items) {
+        if (!item || typeof item !== 'object') continue;
+        const mapped = mapUpworkJobItem(item as UpworkRawJobItem);
+        if (mapped.id && mapped.id !== 'undefined') jobs.push(mapped);
+      }
+      return jobs;
+    } catch (err: unknown) {
+      console.warn(
+        '[UpworkMcpClient] listNotificationJobs failed, continuing with other sources only:',
+        err instanceof Error ? err.message : String(err),
+      );
+      return [];
+    }
+  }
+
+  /**
    * List job invitations: jobs where a client invited Farid directly.
    * Tool invoked: "list_freelancer_proposals" (strictly verified against allowlist).
    *
-   * INVESTIGATION NOTE (2026-11-09): Upwork's own MCP page and a live tool
-   * definition read (2026-11-03) confirm the server can list proposals and
-   * invitations for a freelancer, but the exact tool name and response shape
-   * are NOT confirmed from public sources. This method tries
-   * `list_freelancer_proposals` and parses the response defensively. On any
-   * failure (unknown tool, unexpected shape, HTTP error) it returns an empty
-   * list and logs, so the pipeline continues with saved searches. The first
-   * live run must confirm the tool exists and returns invitations; see
-   * docs/DECISIONS.md.
+   * CORRECTION (2026-11-09): the action is "invitations", not "list".
+   * Action "list" returns proposals Farid already submitted; action
+   * "invitations" returns the client invitations. The earlier code used
+   * "list" and filtered with isInvitationItem, which could not return real
+   * invitations. Invitations are a separate, smaller source from the
+   * notification feed (see listNotificationJobs); the bell shows "Invites
+   * from clients" as its own count, 0 at the time of the correction.
+   *
+   * The exact response shape is NOT confirmed from public sources. This
+   * method parses defensively. On any failure it returns an empty list and
+   * logs, so the pipeline continues with the other sources. The first live
+   * run must confirm the tool returns invitations; see docs/DECISIONS.md.
    *
    * The method never accepts, declines, or submits anything. It only reads.
    */
@@ -453,7 +559,7 @@ export class UpworkMcpClient {
           params: {
             name: 'upwork__list_freelancer_proposals',
             arguments: {
-              action: 'list',
+              action: 'invitations',
               org_uid: orgUid,
               params: {},
             },
@@ -505,7 +611,7 @@ export class UpworkMcpClient {
         if (!isInvitationItem(record)) continue;
         const jobPart = (record.job as UpworkRawJobItem | undefined) ?? record;
         const mapped = mapUpworkJobItem(jobPart as UpworkRawJobItem);
-        if (mapped.id) jobs.push(mapped);
+        if (mapped.id && mapped.id !== 'undefined') jobs.push(mapped);
       }
       return jobs;
     } catch (err: unknown) {

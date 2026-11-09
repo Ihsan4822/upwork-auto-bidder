@@ -36,7 +36,7 @@
 | MCP-001 | Exact list of tools exposed by `mcp.upwork.com` | RESOLVED & GUARDED | Enforced by `ALLOWED_MCP_TOOLS` allowlist and automated scope guard test in CI.              |
 | MCP-002 | MCP rate limits for job search polling          | RESOLVED           | Default poll interval set to 30 minutes in settings; exponential backoff active on HTTP 429. |
 | MCP-003 | Job details fetch format                        | RESOLVED           | `normalizeMcpJob` extracts honest nulls for all optional/unreturned fields.                  |
-| MCP-004 | `list_freelancer_proposals` tool name and response shape for invitations | PENDING LIVE VERIFICATION | Client tries the tool defensively and returns [] on failure; first live worker run must confirm it exists and returns invitations. See docs/DECISIONS.md 2026-11-09. |
+| MCP-004 | `list_freelancer_proposals` action and `find_jobs` smart_search shape for notification jobs | PENDING LIVE VERIFICATION | Client uses action `invitations` (not `list`) and smart_search mode `most_recent`; both parse defensively and return [] on failure. First live worker run must confirm the actions exist and return invitations and matched jobs. See docs/DECISIONS.md 2026-11-09 correction. |
 
 ---
 

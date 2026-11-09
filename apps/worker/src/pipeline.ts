@@ -32,6 +32,7 @@ import {
 
 export interface PipelineCycleSummary {
   newJobsFound: number;
+  notificationsFound: number;
   invitationsFound: number;
   jobsDeduplicated: number;
   jobsFilteredOut: number;
@@ -84,6 +85,7 @@ export async function executePipelineCycle(
 ): Promise<PipelineCycleSummary> {
   const summary: PipelineCycleSummary = {
     newJobsFound: 0,
+    notificationsFound: 0,
     invitationsFound: 0,
     jobsDeduplicated: 0,
     jobsFilteredOut: 0,
@@ -95,11 +97,35 @@ export async function executePipelineCycle(
     draftsGenerated: 0,
   };
 
-  // -- Step 0: Fetch job invitations FIRST (priority source) ------------------
-  // A client inviting Farid directly is the highest-value job source, so
-  // invitations are fetched before the saved searches and shown on top of
-  // the review queue. listInvitations never throws: on any failure it logs
-  // and returns an empty list, so the cycle continues with saved searches.
+  // -- Step 0: Fetch notification jobs FIRST (priority source) ---------------
+  // The "New job" alerts in the Upwork notification bell are Upwork's own
+  // matched jobs for Farid's profile (Best Matches / Most Recent feeds).
+  // They are fetched before everything else and shown on top of the review
+  // queue. listNotificationJobs never throws: on any failure it logs and
+  // returns an empty list, so the cycle continues with the other sources.
+  const notificationJobs: NormalizedJob[] = [];
+  try {
+    const notified = await mcpClient.listNotificationJobs();
+    for (const raw of notified) {
+      try {
+        notificationJobs.push(normalizeMcpJob(raw));
+      } catch (normErr) {
+        console.warn(`[Pipeline] Skipped unparsable notification job:`, normErr);
+      }
+    }
+    summary.notificationsFound = notificationJobs.length;
+    if (notificationJobs.length > 0) {
+      console.log(`[Pipeline] Found ${notificationJobs.length} notification job(s).`);
+    }
+  } catch (notifErr) {
+    console.warn('[Pipeline] Notification fetch failed, continuing with other sources:', notifErr);
+  }
+
+  // -- Step 0b: Fetch job invitations (second priority source) --------------
+  // A client inviting Farid directly is also high value, so invitations are
+  // fetched before the saved searches and shown near the top of the review
+  // queue. listInvitations never throws: on any failure it logs and returns
+  // an empty list, so the cycle continues with saved searches.
   const invitationJobs: NormalizedJob[] = [];
   try {
     const invited = await mcpClient.listInvitations();
@@ -162,10 +188,11 @@ export async function executePipelineCycle(
   }
 
   // Deduplicate and insert into DB.
-  // Invitations go first so that a job found both as an invitation and by
-  // search keeps the INVITATION source (the dedupe check below skips the
-  // second copy).
-  const jobsToInsert: Array<{ job: NormalizedJob; source: 'INVITATION' | 'SEARCH' }> = [
+  // Notification jobs go first, then invitations, so that a job found in
+  // more than one source keeps the highest-priority source (the dedupe
+  // check below skips the second copy).
+  const jobsToInsert: Array<{ job: NormalizedJob; source: 'NOTIFICATION' | 'INVITATION' | 'SEARCH' }> = [
+    ...notificationJobs.map((job) => ({ job, source: 'NOTIFICATION' as const })),
     ...invitationJobs.map((job) => ({ job, source: 'INVITATION' as const })),
     ...rawJobsFound.map((job) => ({ job, source: 'SEARCH' as const })),
   ];

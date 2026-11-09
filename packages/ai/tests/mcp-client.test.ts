@@ -359,6 +359,7 @@ describe('UpworkMcpClient', () => {
     const invitations = await client.listInvitations();
 
     expect(capturedBody?.params?.name).toBe('upwork__list_freelancer_proposals');
+    expect(capturedBody?.params?.arguments?.action).toBe('invitations');
     expect(capturedBody?.params?.arguments?.org_uid).toBe('org_123');
     // Only the invited job is returned; the already-submitted proposal is skipped.
     expect(invitations.length).toBe(1);
@@ -436,5 +437,170 @@ describe('UpworkMcpClient', () => {
     const client = new UpworkMcpClient('test-token', 'http://localhost:9999/mock-mcp');
     const invitations = await client.listInvitations();
     expect(invitations).toEqual([]);
+  });
+
+  it('listNotificationJobs calls find_jobs smart_search most_recent and returns matched jobs', async () => {
+    let capturedBody: McpRpcRequest | null = null;
+
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body && (JSON.parse(init.body as string) as McpRpcRequest).method === 'initialize') {
+        return {
+          ok: true,
+          headers: new Headers({ 'mcp-session-id': 'test-session-123' }),
+          text: async () => JSON.stringify({ jsonrpc: '2.0', id: 1, result: {} }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name === 'upwork__list_accounts'
+      ) {
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 2,
+              result: {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      accounts: [{ role: 'TALENT', name: 'Farid Malik', org_uid: 'org_123' }],
+                    }),
+                  },
+                ],
+              },
+            }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name === 'upwork__find_jobs'
+      ) {
+        capturedBody = JSON.parse(init.body as string) as McpRpcRequest;
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 3,
+              result: {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      jobs: [
+                        {
+                          id: 'notif_job_1',
+                          title: 'Amazon A+ Content Designer',
+                          job_type: 'fixed',
+                          budget: 250,
+                        },
+                        {
+                          // No id fields at all: must be skipped, never stored as "undefined".
+                          title: 'Job without an id',
+                          job_type: 'fixed',
+                          budget: 100,
+                        },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            }),
+        };
+      }
+
+      return {
+        ok: true,
+        headers: new Headers(),
+        text: async () => JSON.stringify({ jsonrpc: '2.0', id: 99, result: {} }),
+      };
+    }) as unknown as typeof fetch;
+
+    const client = new UpworkMcpClient('test-token', 'https://mcp.upwork.com/mcp', 'Farid Malik');
+    const jobs = await client.listNotificationJobs();
+
+    expect(capturedBody?.params?.name).toBe('upwork__find_jobs');
+    expect(capturedBody?.params?.arguments?.action).toBe('smart_search');
+    expect(capturedBody?.params?.arguments?.params?.mode).toBe('most_recent');
+    expect(capturedBody?.params?.arguments?.org_uid).toBe('org_123');
+    // Only the job with a real id is returned; the id-less item is skipped.
+    expect(jobs.length).toBe(1);
+    expect(jobs[0].id).toBe('notif_job_1');
+    expect(jobs[0].title).toBe('Amazon A+ Content Designer');
+    expect(jobs[0].budget_fixed).toBe(250);
+  });
+
+  it('listNotificationJobs returns an empty list instead of throwing on a JSON-RPC error', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body && (JSON.parse(init.body as string) as McpRpcRequest).method === 'initialize') {
+        return {
+          ok: true,
+          headers: new Headers({ 'mcp-session-id': 'test-session-123' }),
+          text: async () => JSON.stringify({ jsonrpc: '2.0', id: 1, result: {} }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name === 'upwork__list_accounts'
+      ) {
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 2,
+              result: {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      accounts: [{ role: 'TALENT', name: 'Farid Malik', org_uid: 'org_123' }],
+                    }),
+                  },
+                ],
+              },
+            }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name === 'upwork__find_jobs'
+      ) {
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 3,
+              error: { code: -32601, message: 'Method not found' },
+            }),
+        };
+      }
+
+      return {
+        ok: true,
+        headers: new Headers(),
+        text: async () => JSON.stringify({}),
+      };
+    }) as unknown as typeof fetch;
+
+    const client = new UpworkMcpClient('test-token', 'https://mcp.upwork.com/mcp');
+    const jobs = await client.listNotificationJobs();
+
+    // The pipeline must continue with the other sources when the tool is missing.
+    expect(jobs).toEqual([]);
+  });
+
+  it('listNotificationJobs returns an empty list for a non-Upwork (mock) server URL', async () => {
+    const client = new UpworkMcpClient('test-token', 'http://localhost:9999/mock-mcp');
+    const jobs = await client.listNotificationJobs();
+    expect(jobs).toEqual([]);
   });
 });

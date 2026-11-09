@@ -25,8 +25,10 @@ export async function GET(request: NextRequest) {
 
     const jobs = await prisma.job.findMany({
       where: whereClause,
-      // Invitations first: 'INVITATION' sorts before 'SEARCH' alphabetically,
-      // so a client-invited job always sits on top of the review queue.
+      // Priority order by source, alphabetical: 'INVITATION' first, then
+      // 'NOTIFICATION', then 'SEARCH'. A client-invited job sits on top,
+      // followed by Upwork's own matched jobs (the notification bell), then
+      // the broad saved-search results.
       orderBy: [{ source: 'asc' }, { postedAt: 'desc' }],
       take: 50,
       include: {
