@@ -82,3 +82,18 @@ If password login is needed in a future phase, it is added without breaking this
 **Reason:** The official Upwork MCP server (`https://mcp.upwork.com/mcp`) requires `org_uid` as a mandatory argument for `upwork__find_jobs`. Calling `upwork__list_accounts` is required to discover the user's freelancer `org_uid` before executing read-only job searches. The tool is strictly read-only, has no write capabilities, and matches none of the banned tool patterns.
 
 **Rejected:** Hardcoding a static `org_uid` in environment configuration (fragile if account details change or during multi-account support).
+
+---
+
+## 2026-11-08 · Score deduplication, draft quality hardening, and Upwork MCP protocol alignment
+
+**Decision:**
+1. Check for existing score records (`jobScore.findFirst`) before invoking scoring in the worker pipeline, and deduplicate by `jobId` in `/api/jobs/scored` so only the latest score is displayed while preserving full historical audit records in PostgreSQL. Older duplicate rows are marked as superseded in their reasons field rather than deleted.
+2. In the proposal drafter and prompt template, omit the portfolio sample section completely when no matching portfolio item exists. Explicitly forbid referencing nonexistent samples and ban "Not Available" text in proposal output.
+3. Clamp Upwork MCP `find_jobs` search limit to 10 in both client and pipeline to strictly respect Upwork MCP server constraints (`limit cannot exceed 10`).
+4. Implement session-based JSON-RPC protocol (`ensureSession`, `mcp-session-id`, `Authorization: Bearer`) for `getJobDetails` when connecting to live `upwork.com` MCP endpoints.
+5. Provide `registeredAppName` in `/api/auth/upwork/status` so connection status page reliably displays the registered app name upon settlement.
+
+**Reason:** Eliminates duplicate scores across poll cycles, ensures proposals remain grounded without referencing nonexistent samples, and prevents runtime protocol errors when calling Upwork MCP server.
+
+**Rejected:** Silently deleting older duplicate scores from the database (violates audit history retention).

@@ -93,7 +93,7 @@ export async function executePipelineCycle(
 
   for (const search of searches) {
     try {
-      const result = await mcpClient.searchJobs(search.queryText, 25);
+      const result = await mcpClient.searchJobs(search.queryText, 10);
       for (const raw of result.jobs) {
         try {
           rawJobsFound.push(normalizeMcpJob(raw));
@@ -250,6 +250,36 @@ export async function executePipelineCycle(
 
     for (const job of jobsToScore) {
       try {
+        // Check if job already has a score to prevent duplicate scoring
+        const existingScore = await prisma.jobScore.findFirst({
+          where: { jobId: job.id },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (existingScore) {
+          console.log(
+            `[Pipeline] Job ${job.upworkJobId} already has a score (${existingScore.label}, score: ${existingScore.score}). Skipping duplicate scoring.`,
+          );
+          if (existingScore.label === 'SKIP') {
+            await prisma.job.update({
+              where: { id: job.id },
+              data: { status: 'SKIPPED' },
+            });
+          } else if (
+            existingScore.label === 'APPLY' ||
+            existingScore.label === 'APPLY_PLUS_BOOST'
+          ) {
+            const existingDraft = await prisma.draft.findFirst({
+              where: { jobId: job.id },
+            });
+            await prisma.job.update({
+              where: { id: job.id },
+              data: { status: existingDraft ? 'DRAFT_READY' : 'IN_REVIEW' },
+            });
+          }
+          continue;
+        }
+
         const normalized: NormalizedJob = {
           upworkJobId: job.upworkJobId,
           title: job.title,

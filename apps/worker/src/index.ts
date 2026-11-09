@@ -97,7 +97,7 @@ export async function runWorkerIteration(): Promise<void> {
           throw err;
         }
 
-        let client = new UpworkMcpClient(accessToken, mcpUrl);
+        let client = new UpworkMcpClient(accessToken, mcpUrl, profile.displayName);
 
         console.log(
           `[Worker] Running pipeline for profile: ${profile.displayName} (${profile.id})`,
@@ -117,7 +117,7 @@ export async function runWorkerIteration(): Promise<void> {
               const refreshedToken = await getValidAccessToken(profile.id, encryptionKey, {
                 forceRefresh: true,
               });
-              client = new UpworkMcpClient(refreshedToken, mcpUrl);
+              client = new UpworkMcpClient(refreshedToken, mcpUrl, profile.displayName);
               summary = await executePipelineCycle(profile.id, client);
             } catch (retryErr) {
               if (retryErr instanceof NeedsReconnectError) {

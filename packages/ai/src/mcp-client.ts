@@ -34,8 +34,14 @@ export interface McpSearchJobsResult {
 }
 
 interface McpJsonRpcResponse {
+  error?: {
+    code?: number;
+    message?: string;
+    data?: unknown;
+  };
   result?: {
     content?: Array<{ text?: string }>;
+    isError?: boolean;
   };
 }
 
@@ -90,12 +96,18 @@ function parseMcpPayload(rawText: string): McpJsonRpcResponse {
 export class UpworkMcpClient {
   private readonly mcpServerUrl: string;
   private readonly token: string;
+  private readonly preferredName?: string;
   private sessionId: string | null = null;
   private orgUid: string | null = null;
 
-  constructor(token: string, mcpServerUrl = 'https://mcp.upwork.com/mcp') {
+  constructor(
+    token: string,
+    mcpServerUrl = 'https://mcp.upwork.com/mcp',
+    preferredName?: string,
+  ) {
     this.token = token;
     this.mcpServerUrl = mcpServerUrl.replace(/\/$/, '');
+    this.preferredName = preferredName;
   }
 
   private async ensureSession(): Promise<{ sessionId: string; orgUid: string }> {
@@ -164,7 +176,11 @@ export class UpworkMcpClient {
     const accounts = parsedAccounts?.accounts || [];
 
     const talentAccount =
-      accounts.find((a) => a.role === 'TALENT' || a.name?.includes('Farid')) || accounts[0];
+      accounts.find(
+        (a) =>
+          a.role === 'TALENT' ||
+          (this.preferredName && a.name?.toLowerCase().includes(this.preferredName.toLowerCase())),
+      ) || accounts[0];
 
     if (!talentAccount?.org_uid) {
       throw new Error('No Upwork account with org_uid found');
@@ -222,6 +238,12 @@ export class UpworkMcpClient {
       }
 
       const payload = parseMcpPayload(await response.text());
+      if (payload.error) {
+        const errMsg = payload.error.message || 'Unknown JSON-RPC error';
+        console.error(`[UpworkMcpClient] searchJobs JSON-RPC error: ${errMsg}`);
+        throw new Error(`Upwork MCP error: ${errMsg}`);
+      }
+
       const rawContent = payload.result?.content?.[0]?.text;
       if (!rawContent) {
         return { jobs: [], totalFound: 0 };
@@ -229,7 +251,14 @@ export class UpworkMcpClient {
 
       const parsed = JSON.parse(rawContent) as
         | UpworkRawJobItem[]
-        | { jobs?: UpworkRawJobItem[] };
+        | { jobs?: UpworkRawJobItem[]; error?: string; error_code?: string; reason?: string };
+
+      if (!Array.isArray(parsed) && (parsed.error || parsed.error_code || parsed.reason)) {
+        const errMsg = parsed.reason || parsed.error || `Upwork tool error code: ${parsed.error_code}`;
+        console.error(`[UpworkMcpClient] searchJobs tool error: ${errMsg}`);
+        throw new Error(`Upwork MCP tool error: ${errMsg}`);
+      }
+
       const rawJobs = Array.isArray(parsed) ? parsed : parsed.jobs || [];
 
       const mappedJobs: RawMcpJob[] = rawJobs.map((j) => {
@@ -348,6 +377,58 @@ export class UpworkMcpClient {
     const toolName = 'get_job_details';
     assertMcpToolAllowed(toolName);
 
+    if (this.mcpServerUrl.includes('upwork.com')) {
+      try {
+        const { sessionId, orgUid } = await this.ensureSession();
+        const response = await fetch(this.mcpServerUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
+            Authorization: `Bearer ${this.token}`,
+            'mcp-session-id': sessionId,
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: Date.now(),
+            method: 'tools/call',
+            params: {
+              name: 'upwork__get_job_details',
+              arguments: {
+                action: 'get',
+                org_uid: orgUid,
+                params: {
+                  job_id: upworkJobId,
+                },
+              },
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          return null;
+        }
+
+        const payload = parseMcpPayload(await response.text());
+        if (payload.error) {
+          console.error(`[UpworkMcpClient] getJobDetails error: ${payload.error.message}`);
+          return null;
+        }
+
+        const rawContent = payload.result?.content?.[0]?.text;
+        if (!rawContent) return null;
+
+        const parsed = JSON.parse(rawContent) as { error?: string; error_code?: string; reason?: string } & RawMcpJob;
+        if (parsed.error || parsed.error_code || parsed.reason) {
+          return null;
+        }
+        return parsed as RawMcpJob;
+      } catch {
+        return null;
+      }
+    }
+
+    // Fallback path for mock servers and testing environments
     try {
       const response = await fetch(`${this.mcpServerUrl}/tools/call`, {
         method: 'POST',
