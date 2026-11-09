@@ -32,6 +32,12 @@ export const ALLOWED_MCP_TOOLS = [
   'get_job',
   'get_job_details',
   'list_accounts',
+  // Read-only list of the freelancer's proposals, which is how the Upwork
+  // MCP server surfaces job invitations (a client inviting Farid directly).
+  // The tool only reads; it never accepts, declines, or submits anything.
+  // See docs/DECISIONS.md: the exact tool name and response shape are not
+  // confirmed from public sources and must be verified on a live run.
+  'list_freelancer_proposals',
 ] as const;
 
 export type AllowedMcpTool = (typeof ALLOWED_MCP_TOOLS)[number];

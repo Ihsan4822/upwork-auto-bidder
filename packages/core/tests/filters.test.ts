@@ -234,4 +234,85 @@ describe('Hard Filters — Module 2', () => {
       }
     });
   });
+
+  describe('Client spend filter', () => {
+    it('passes a job when no spend minimum is set (0)', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, clientTotalSpend: 0 };
+      const result = applyHardFilters(job, { ...DEFAULT_FLOORS, clientMinTotalSpendUsd: 0 });
+      expect(result.passed).toBe(true);
+    });
+
+    it('rejects a job whose client spend is below the minimum', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, clientTotalSpend: 500 };
+      const result = applyHardFilters(job, { ...DEFAULT_FLOORS, clientMinTotalSpendUsd: 1000 });
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Client Spend Too Low');
+      }
+    });
+
+    it('passes a job whose client spend is exactly at the minimum', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, clientTotalSpend: 1000 };
+      const result = applyHardFilters(job, { ...DEFAULT_FLOORS, clientMinTotalSpendUsd: 1000 });
+      expect(result.passed).toBe(true);
+    });
+
+    it('passes a job when client spend is null (not returned by MCP)', () => {
+      // A null spend is not punished: the filter only rejects a known low spend.
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, clientTotalSpend: null };
+      const result = applyHardFilters(job, { ...DEFAULT_FLOORS, clientMinTotalSpendUsd: 1000 });
+      expect(result.passed).toBe(true);
+    });
+  });
+
+  describe('Payment verified toggle', () => {
+    it('passes an unverified job when paymentVerifiedRequired is false', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, paymentVerified: false };
+      const result = applyHardFilters(job, {
+        ...DEFAULT_FLOORS,
+        paymentVerifiedRequired: false,
+      });
+      expect(result.passed).toBe(true);
+    });
+
+    it('still rejects an unverified job when paymentVerifiedRequired is true', () => {
+      const job: JobFilterInput = { ...PASSING_FIXED_JOB, paymentVerified: false };
+      const result = applyHardFilters(job, {
+        ...DEFAULT_FLOORS,
+        paymentVerifiedRequired: true,
+      });
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Payment Not Verified');
+      }
+    });
+  });
+
+  describe('Custom niche keywords', () => {
+    it('passes a job matching a custom keyword not in the default list', () => {
+      const job: JobFilterInput = {
+        ...PASSING_FIXED_JOB,
+        title: 'Need Amazon Listing Optimization expert',
+        description: 'Help us improve our Amazon Listing Optimization',
+      };
+      const result = applyHardFilters(job, {
+        ...DEFAULT_FLOORS,
+        nicheKeywords: ['Amazon Listing Optimization'],
+      });
+      expect(result.passed).toBe(true);
+    });
+
+    it('rejects a job that matches only a default niche when custom keywords replace them', () => {
+      // "A Plus Content" is a default niche, but the custom list is only
+      // Packaging Design, so this job is outside the configured niche.
+      const result = applyHardFilters(PASSING_FIXED_JOB, {
+        ...DEFAULT_FLOORS,
+        nicheKeywords: ['Packaging Design'],
+      });
+      expect(result.passed).toBe(false);
+      if (!result.passed) {
+        expect(result.reason).toBe('Outside Niche');
+      }
+    });
+  });
 });

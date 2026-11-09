@@ -134,7 +134,11 @@ export default function UpworkConnectionPage() {
         <h2 className="text-2xl font-bold text-slate-900">Upwork MCP Connection (Module 1)</h2>
         <p className="text-sm text-slate-600 mt-1">
           OAuth 2.1 authentication with PKCE for Upwork MCP access. Grants strictly read-only job
-          discovery permissions.
+          discovery permissions. Job minimums and niche keywords are set on the{' '}
+          <a href="/settings/criteria" className="text-emerald-700 underline hover:text-emerald-900">
+            Criteria Settings
+          </a>{' '}
+          page.
         </p>
       </div>
 

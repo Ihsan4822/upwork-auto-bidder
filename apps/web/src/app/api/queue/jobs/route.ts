@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
 
     const jobs = await prisma.job.findMany({
       where: whereClause,
-      orderBy: { postedAt: 'desc' },
+      // Invitations first: 'INVITATION' sorts before 'SEARCH' alphabetically,
+      // so a client-invited job always sits on top of the review queue.
+      orderBy: [{ source: 'asc' }, { postedAt: 'desc' }],
       take: 50,
       include: {
         scores: {

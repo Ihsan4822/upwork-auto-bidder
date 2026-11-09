@@ -53,6 +53,7 @@ interface UpworkAccountItem {
 
 interface UpworkRawJobItem {
   id?: string | number;
+  job_id?: string | number;
   ciphertext?: string;
   uid?: string;
   title?: string;
@@ -91,6 +92,92 @@ function parseMcpPayload(rawText: string): McpJsonRpcResponse {
     }
   }
   return JSON.parse(rawText) as McpJsonRpcResponse;
+}
+
+/**
+ * Map one raw Upwork job item (as returned by the MCP server) to the
+ * normalized RawMcpJob shape. Shared by searchJobs and listInvitations so
+ * both sources parse budget, client, and payment fields the same way.
+ */
+function mapUpworkJobItem(j: UpworkRawJobItem): RawMcpJob {
+  let budgetFixed: number | undefined;
+  let hourlyMin: number | undefined;
+  let hourlyMax: number | undefined;
+  let budgetType: 'HOURLY' | 'FIXED' | undefined;
+
+  if (j.job_type === 'fixed') {
+    budgetType = 'FIXED';
+    const num = parseFloat(String(j.budget || '').replace(/[^0-9.]/g, ''));
+    if (!isNaN(num)) budgetFixed = num;
+  } else if (j.job_type === 'hourly') {
+    budgetType = 'HOURLY';
+    const budgetStr = String(j.budget || '');
+    const range = budgetStr.match(/([0-9.]+)(?:–|-)([0-9.]+)/);
+    if (range) {
+      hourlyMin = parseFloat(range[1]);
+      hourlyMax = parseFloat(range[2]);
+    } else {
+      const single = budgetStr.match(/([0-9.]+)/);
+      if (single) {
+        hourlyMin = parseFloat(single[1]);
+        hourlyMax = parseFloat(single[1]);
+      }
+    }
+  }
+
+  return {
+    id: String(j.id || j.job_id || j.ciphertext || j.uid),
+    title: j.title,
+    description: j.description || j.description_snippet,
+    budget_type: budgetType,
+    budget_fixed: budgetFixed,
+    hourly_min: hourlyMin,
+    hourly_max: hourlyMax,
+    client_country: j.client?.country || j.client_country,
+    client_total_spend: j.client?.total_spend ?? j.client_total_spend,
+    client_hire_rate: j.client?.hire_rate ?? j.client_hire_rate,
+    payment_verified: j.client
+      ? j.client.verification_status === 'VERIFIED'
+      : j.payment_verified,
+    proposal_count: typeof j.proposal_count === 'number' ? j.proposal_count : undefined,
+    posted_time: j.published_date || j.created_date || j.posted_time,
+    skills: Array.isArray(j.skills) ? j.skills : [],
+    url: j.url,
+  };
+}
+
+/**
+ * Decide whether one proposal-list item is a client invitation rather than
+ * a proposal Farid already submitted.
+ *
+ * Rule: an explicit invitation marker wins. A submitted-proposal marker
+ * (submitted, interviewing, archived, declined, hired, cover letter, bid)
+ * without an invitation marker is skipped. An item with no status info at
+ * all is kept, because the freelancer proposals list is where Upwork
+ * surfaces invitations, and the pipeline dedupes by job id anyway.
+ *
+ * This is a best-effort rule: the exact response shape of
+ * list_freelancer_proposals is not confirmed from public sources. The first
+ * live run logs the shape (field names only) so the rule can be corrected.
+ */
+function isInvitationItem(item: Record<string, unknown>): boolean {
+  const statusText = [item.status, item.invitation_status, item.type]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
+  const hasInvitationMarker =
+    statusText.includes('invit') || item.is_invitation === true;
+  const hasSubmittedMarker =
+    statusText.includes('submit') ||
+    statusText.includes('interview') ||
+    statusText.includes('archiv') ||
+    statusText.includes('declin') ||
+    statusText.includes('hire') ||
+    item.cover_letter !== undefined ||
+    item.bid !== undefined;
+  if (hasSubmittedMarker && !hasInvitationMarker) return false;
+  if (hasInvitationMarker) return true;
+  return statusText === '';
 }
 
 export class UpworkMcpClient {
@@ -261,52 +348,7 @@ export class UpworkMcpClient {
 
       const rawJobs = Array.isArray(parsed) ? parsed : parsed.jobs || [];
 
-      const mappedJobs: RawMcpJob[] = rawJobs.map((j) => {
-        let budgetFixed: number | undefined;
-        let hourlyMin: number | undefined;
-        let hourlyMax: number | undefined;
-        let budgetType: 'HOURLY' | 'FIXED' | undefined;
-
-        if (j.job_type === 'fixed') {
-          budgetType = 'FIXED';
-          const num = parseFloat(String(j.budget || '').replace(/[^0-9.]/g, ''));
-          if (!isNaN(num)) budgetFixed = num;
-        } else if (j.job_type === 'hourly') {
-          budgetType = 'HOURLY';
-          const budgetStr = String(j.budget || '');
-          const range = budgetStr.match(/([0-9.]+)(?:–|-)([0-9.]+)/);
-          if (range) {
-            hourlyMin = parseFloat(range[1]);
-            hourlyMax = parseFloat(range[2]);
-          } else {
-            const single = budgetStr.match(/([0-9.]+)/);
-            if (single) {
-              hourlyMin = parseFloat(single[1]);
-              hourlyMax = parseFloat(single[1]);
-            }
-          }
-        }
-
-        return {
-          id: String(j.id || j.ciphertext || j.uid),
-          title: j.title,
-          description: j.description || j.description_snippet,
-          budget_type: budgetType,
-          budget_fixed: budgetFixed,
-          hourly_min: hourlyMin,
-          hourly_max: hourlyMax,
-          client_country: j.client?.country || j.client_country,
-          client_total_spend: j.client?.total_spend ?? j.client_total_spend,
-          client_hire_rate: j.client?.hire_rate ?? j.client_hire_rate,
-          payment_verified: j.client
-            ? j.client.verification_status === 'VERIFIED'
-            : j.payment_verified,
-          proposal_count: typeof j.proposal_count === 'number' ? j.proposal_count : undefined,
-          posted_time: j.published_date || j.created_date || j.posted_time,
-          skills: Array.isArray(j.skills) ? j.skills : [],
-          url: j.url,
-        };
-      });
+      const mappedJobs: RawMcpJob[] = rawJobs.map(mapUpworkJobItem);
 
       return {
         jobs: mappedJobs,
@@ -366,6 +408,112 @@ export class UpworkMcpClient {
           cause: err,
         },
       );
+    }
+  }
+
+  /**
+   * List job invitations: jobs where a client invited Farid directly.
+   * Tool invoked: "list_freelancer_proposals" (strictly verified against allowlist).
+   *
+   * INVESTIGATION NOTE (2026-11-09): Upwork's own MCP page and a live tool
+   * definition read (2026-11-03) confirm the server can list proposals and
+   * invitations for a freelancer, but the exact tool name and response shape
+   * are NOT confirmed from public sources. This method tries
+   * `list_freelancer_proposals` and parses the response defensively. On any
+   * failure (unknown tool, unexpected shape, HTTP error) it returns an empty
+   * list and logs, so the pipeline continues with saved searches. The first
+   * live run must confirm the tool exists and returns invitations; see
+   * docs/DECISIONS.md.
+   *
+   * The method never accepts, declines, or submits anything. It only reads.
+   */
+  async listInvitations(): Promise<RawMcpJob[]> {
+    const toolName = 'list_freelancer_proposals';
+    assertMcpToolAllowed(toolName);
+
+    if (!this.mcpServerUrl.includes('upwork.com')) {
+      // Mock and test environments have no invitations.
+      return [];
+    }
+
+    try {
+      const { sessionId, orgUid } = await this.ensureSession();
+      const response = await fetch(this.mcpServerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          Authorization: `Bearer ${this.token}`,
+          'mcp-session-id': sessionId,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: 'upwork__list_freelancer_proposals',
+            arguments: {
+              action: 'list',
+              org_uid: orgUid,
+              params: {},
+            },
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn(
+          `[UpworkMcpClient] listInvitations HTTP ${response.status}, continuing with saved searches only.`,
+        );
+        return [];
+      }
+
+      const payload = parseMcpPayload(await response.text());
+      if (payload.error) {
+        console.warn(
+          `[UpworkMcpClient] listInvitations JSON-RPC error: ${payload.error.message || 'unknown'}, continuing with saved searches only.`,
+        );
+        return [];
+      }
+
+      const rawContent = payload.result?.content?.[0]?.text;
+      if (!rawContent) return [];
+
+      const parsed: unknown = JSON.parse(rawContent);
+      const items: unknown[] = Array.isArray(parsed)
+        ? parsed
+        : ((parsed as { proposals?: unknown[] }).proposals ??
+          (parsed as { invitations?: unknown[] }).invitations ??
+          (parsed as { jobs?: unknown[] }).jobs ??
+          []);
+
+      if (items.length > 0) {
+        // Log only the field names of the first item, never values, so the
+        // first live run reveals the real response shape without leaking data.
+        const first = items[0];
+        if (first && typeof first === 'object') {
+          console.log(
+            `[UpworkMcpClient] listInvitations shape: ${Object.keys(first as Record<string, unknown>).join(', ')}`,
+          );
+        }
+      }
+
+      const jobs: RawMcpJob[] = [];
+      for (const item of items) {
+        if (!item || typeof item !== 'object') continue;
+        const record = item as Record<string, unknown>;
+        if (!isInvitationItem(record)) continue;
+        const jobPart = (record.job as UpworkRawJobItem | undefined) ?? record;
+        const mapped = mapUpworkJobItem(jobPart as UpworkRawJobItem);
+        if (mapped.id) jobs.push(mapped);
+      }
+      return jobs;
+    } catch (err: unknown) {
+      console.warn(
+        '[UpworkMcpClient] listInvitations failed, continuing with saved searches only:',
+        err instanceof Error ? err.message : String(err),
+      );
+      return [];
     }
   }
 

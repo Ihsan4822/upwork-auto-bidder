@@ -13,6 +13,7 @@ interface QueueJob {
   hourlyRateMax: number | null;
   clientCountry: string | null;
   status: string;
+  source?: string;
   scores: Array<{ label: string; score: number; reasons: string[] }>;
   drafts: Array<{
     id: string;
@@ -145,6 +146,12 @@ export default function ReviewQueuePage() {
                         >
                           {job.status.replace('_', ' ')}
                         </span>
+
+                        {job.source === 'INVITATION' && (
+                          <span className="text-xs px-2 py-0.5 rounded font-bold uppercase bg-violet-100 text-violet-800">
+                            Invitation
+                          </span>
+                        )}
 
                         {score && (
                           <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">

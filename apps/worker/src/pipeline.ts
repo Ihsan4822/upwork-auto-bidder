@@ -9,7 +9,7 @@
  */
 
 import { prisma } from '@upwork-bidder/db';
-import { applyHardFilters } from '@upwork-bidder/core';
+import { applyHardFilters, parseStoredCriteria, type FilterCriteria } from '@upwork-bidder/core';
 import {
   UpworkMcpClient,
   normalizeMcpJob,
@@ -21,9 +21,8 @@ import {
   type PortfolioItemInput,
 } from '@upwork-bidder/ai';
 import {
-  HOURLY_RATE_FLOOR_USD,
-  FIXED_PRICE_FLOOR_USD,
   DEFAULT_SAVED_SEARCHES,
+  SETTINGS_KEYS,
 } from '@upwork-bidder/config';
 import {
   ClockedClient,
@@ -33,6 +32,7 @@ import {
 
 export interface PipelineCycleSummary {
   newJobsFound: number;
+  invitationsFound: number;
   jobsDeduplicated: number;
   jobsFilteredOut: number;
   jobsPassedFilters: number;
@@ -41,6 +41,32 @@ export interface PipelineCycleSummary {
   scoredBoost: number;
   scoredSkip: number;
   draftsGenerated: number;
+}
+
+/**
+ * Load the job criteria from the settings table, merged over the defaults.
+ * The worker reads them on every poll cycle, so a change on the Criteria
+ * Settings page applies to the next cycle with no restart.
+ */
+async function loadCriteria(): Promise<FilterCriteria> {
+  const rows = await prisma.setting.findMany({
+    where: {
+      key: {
+        in: [
+          SETTINGS_KEYS.HOURLY_RATE_FLOOR_USD,
+          SETTINGS_KEYS.FIXED_PRICE_FLOOR_USD,
+          SETTINGS_KEYS.CLIENT_MIN_TOTAL_SPEND_USD,
+          SETTINGS_KEYS.PAYMENT_VERIFIED_REQUIRED,
+          SETTINGS_KEYS.NICHE_KEYWORDS,
+        ],
+      },
+    },
+  });
+  const stored: Record<string, string | undefined> = {};
+  for (const row of rows) {
+    stored[row.key] = row.value;
+  }
+  return parseStoredCriteria(stored);
 }
 
 /**
@@ -58,6 +84,7 @@ export async function executePipelineCycle(
 ): Promise<PipelineCycleSummary> {
   const summary: PipelineCycleSummary = {
     newJobsFound: 0,
+    invitationsFound: 0,
     jobsDeduplicated: 0,
     jobsFilteredOut: 0,
     jobsPassedFilters: 0,
@@ -67,6 +94,29 @@ export async function executePipelineCycle(
     scoredSkip: 0,
     draftsGenerated: 0,
   };
+
+  // -- Step 0: Fetch job invitations FIRST (priority source) ------------------
+  // A client inviting Farid directly is the highest-value job source, so
+  // invitations are fetched before the saved searches and shown on top of
+  // the review queue. listInvitations never throws: on any failure it logs
+  // and returns an empty list, so the cycle continues with saved searches.
+  const invitationJobs: NormalizedJob[] = [];
+  try {
+    const invited = await mcpClient.listInvitations();
+    for (const raw of invited) {
+      try {
+        invitationJobs.push(normalizeMcpJob(raw));
+      } catch (normErr) {
+        console.warn(`[Pipeline] Skipped unparsable invitation job:`, normErr);
+      }
+    }
+    summary.invitationsFound = invitationJobs.length;
+    if (invitationJobs.length > 0) {
+      console.log(`[Pipeline] Found ${invitationJobs.length} job invitation(s).`);
+    }
+  } catch (invErr) {
+    console.warn('[Pipeline] Invitation fetch failed, continuing with saved searches:', invErr);
+  }
 
   // -- Step 1: Poll Saved Searches -------------------------------------------
   let searches = await prisma.savedSearch.findMany({
@@ -111,8 +161,16 @@ export async function executePipelineCycle(
     }
   }
 
-  // Deduplicate and insert into DB
-  for (const job of rawJobsFound) {
+  // Deduplicate and insert into DB.
+  // Invitations go first so that a job found both as an invitation and by
+  // search keeps the INVITATION source (the dedupe check below skips the
+  // second copy).
+  const jobsToInsert: Array<{ job: NormalizedJob; source: 'INVITATION' | 'SEARCH' }> = [
+    ...invitationJobs.map((job) => ({ job, source: 'INVITATION' as const })),
+    ...rawJobsFound.map((job) => ({ job, source: 'SEARCH' as const })),
+  ];
+
+  for (const { job, source } of jobsToInsert) {
     const existing = await prisma.job.findUnique({
       where: { upworkJobId: job.upworkJobId },
     });
@@ -140,6 +198,7 @@ export async function executePipelineCycle(
         postedAt: job.postedAt,
         skills: job.skills,
         jobUrl: job.jobUrl,
+        source,
         status: 'NEW',
       },
     });
@@ -152,14 +211,10 @@ export async function executePipelineCycle(
     where: { profileId, status: 'NEW' },
   });
 
-  // Load floors (fallback to config defaults)
-  const hourlySetting = await prisma.setting.findUnique({ where: { key: 'hourlyRateFloorUsd' } });
-  const fixedSetting = await prisma.setting.findUnique({ where: { key: 'fixedPriceFloorUsd' } });
-
-  const floors = {
-    hourlyRateFloorUsd: hourlySetting ? parseFloat(hourlySetting.value) : HOURLY_RATE_FLOOR_USD,
-    fixedPriceFloorUsd: fixedSetting ? parseFloat(fixedSetting.value) : FIXED_PRICE_FLOOR_USD,
-  };
+  // Load criteria from the settings table (defaults when unset).
+  // Read fresh every cycle so a change on the Criteria Settings page
+  // applies to the next poll with no restart.
+  const criteria = await loadCriteria();
 
   for (const job of pendingJobs) {
     const filterInput = {
@@ -175,10 +230,14 @@ export async function executePipelineCycle(
         job.hourlyRateMax !== null && job.hourlyRateMax !== undefined
           ? Number(job.hourlyRateMax)
           : null,
+      clientTotalSpend:
+        job.clientTotalSpend !== null && job.clientTotalSpend !== undefined
+          ? Number(job.clientTotalSpend)
+          : null,
       paymentVerified: job.paymentVerified,
     };
 
-    const filterResult = applyHardFilters(filterInput, floors);
+    const filterResult = applyHardFilters(filterInput, criteria);
 
     if (!filterResult.passed) {
       await prisma.job.update({

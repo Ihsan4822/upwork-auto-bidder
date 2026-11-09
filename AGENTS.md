@@ -79,7 +79,7 @@ Banned tool patterns (fail the build if any appear in allowlist or config):
 | Database   | PostgreSQL via Prisma                            |
 | Validation | Zod everywhere (inputs, AI outputs, env vars)    |
 | UI         | Tailwind CSS + shadcn/ui                         |
-| AI Runtime | Gemini 1.5 Pro via `packages/ai/src/provider.ts` |
+| AI Runtime | Gemini 3.5 Flash via `packages/ai/src/provider.ts` |
 | Testing    | Vitest (unit/integration) + Playwright (e2e)     |
 
 ---

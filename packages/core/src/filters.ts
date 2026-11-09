@@ -21,6 +21,7 @@ export interface JobFilterInput {
   budgetType: string | null; // "HOURLY" | "FIXED" | null
   budgetAmountFixed: number | null;
   hourlyRateMax: number | null; // Client's stated hourly max
+  clientTotalSpend?: number | null; // Client's lifetime spend on Upwork, null if not returned
   paymentVerified: boolean | null;
 }
 
@@ -28,6 +29,21 @@ export interface JobFilterInput {
 export interface FilterFloors {
   hourlyRateFloorUsd: number;
   fixedPriceFloorUsd: number;
+}
+
+/**
+ * Full criteria loaded from the settings DB table (see /settings/criteria).
+ * The extra fields are optional so existing callers that only pass floors
+ * keep working with the safe defaults: spend minimum 0 (off), payment
+ * verification required, default niche list.
+ */
+export interface FilterCriteria extends FilterFloors {
+  /** Minimum client lifetime spend in USD. 0 means no minimum. */
+  clientMinTotalSpendUsd?: number;
+  /** When false, the payment-verified check is skipped. Default true. */
+  paymentVerifiedRequired?: boolean;
+  /** Niche keywords to match. Empty or unset means the default niche list. */
+  nicheKeywords?: string[];
 }
 
 /** Result of running hard filters on a job. */
@@ -42,7 +58,8 @@ export type FilterFailureReason =
   | 'Budget Too Low'
   | 'Payment Not Verified'
   | 'Outside Niche'
-  | 'Missing Budget Information';
+  | 'Missing Budget Information'
+  | 'Client Spend Too Low';
 
 /**
  * Run all hard filters on a job. Returns the first failure reason or passes.
@@ -50,19 +67,37 @@ export type FilterFailureReason =
  * Order matters: cheapest checks run first to skip expensive ones early.
  *
  * @param job - The job to filter
- * @param floors - Fee floors from the settings DB table
+ * @param criteria - Fee floors and criteria from the settings DB table.
+ *   A plain FilterFloors object still works: the extra criteria default to
+ *   spend minimum 0 (off), payment verification required, default niches.
  * @returns FilterResult — either passed or failed with a plain-word reason
  */
-export function applyHardFilters(job: JobFilterInput, floors: FilterFloors): FilterResult {
-  // Filter 1: Payment must be verified
+export function applyHardFilters(job: JobFilterInput, criteria: FilterCriteria): FilterResult {
+  const floors: FilterFloors = {
+    hourlyRateFloorUsd: criteria.hourlyRateFloorUsd,
+    fixedPriceFloorUsd: criteria.fixedPriceFloorUsd,
+  };
+  const paymentVerifiedRequired = criteria.paymentVerifiedRequired !== false;
+  const clientMinTotalSpendUsd =
+    typeof criteria.clientMinTotalSpendUsd === 'number' &&
+    Number.isFinite(criteria.clientMinTotalSpendUsd)
+      ? criteria.clientMinTotalSpendUsd
+      : 0;
+  const nicheKeywords =
+    criteria.nicheKeywords && criteria.nicheKeywords.length > 0
+      ? criteria.nicheKeywords
+      : undefined;
+
+  // Filter 1: Payment must be verified (unless the user turned the check off)
   // null means the MCP did not return this field — treat as not verified (safe default)
-  if (job.paymentVerified !== true) {
+  if (paymentVerifiedRequired && job.paymentVerified !== true) {
     return { passed: false, reason: 'Payment Not Verified' };
   }
 
-  // Filter 2: Niche match — job must be in Farid's niches
+  // Filter 2: Niche match — job must be in Farid's niches.
+  // Uses the user-configured keyword list when set, else the default list.
   const textToMatch = [job.title ?? '', job.description ?? ''].join(' ');
-  if (!matchesNiche(textToMatch)) {
+  if (!matchesNiche(textToMatch, nicheKeywords)) {
     return { passed: false, reason: 'Outside Niche' };
   }
 
@@ -99,6 +134,17 @@ export function applyHardFilters(job: JobFilterInput, floors: FilterFloors): Fil
     if (job.budgetAmountFixed < floors.fixedPriceFloorUsd) {
       return { passed: false, reason: 'Budget Too Low' };
     }
+  }
+
+  // Filter 6: Client spend — only when a minimum is set (> 0) and the spend
+  // is known. A null spend (not returned by MCP) is not punished.
+  if (
+    clientMinTotalSpendUsd > 0 &&
+    typeof job.clientTotalSpend === 'number' &&
+    Number.isFinite(job.clientTotalSpend) &&
+    job.clientTotalSpend < clientMinTotalSpendUsd
+  ) {
+    return { passed: false, reason: 'Client Spend Too Low' };
   }
 
   return { passed: true };

@@ -46,7 +46,7 @@ Every variable is listed in `.env.example`. Fill in `.env` only. Never commit `.
 | `DATABASE_URL`               | PostgreSQL connection string                                                                        |
 | `REDIS_URL`                  | Redis connection string (for worker BullMQ queue)                                                   |
 | `AI_API_KEY`                 | Google Gemini API key                                                                               |
-| `AI_MODEL_NAME`              | Model name (default: `gemini-1.5-pro`)                                                              |
+| `AI_MODEL_NAME`              | Model name (default: `gemini-3.5-flash`)                                                            |
 | `SESSION_SECRET`             | Random 32+ character string for session signing                                                     |
 | `UPWORK_MCP_URL`             | Upwork MCP server URL (default: `https://mcp.upwork.com/mcp`)                                       |
 | `UPWORK_AUTH_URL`            | Upwork OAuth authorization endpoint (`https://www.upwork.com/ab/account-security/oauth2/authorize`) |
