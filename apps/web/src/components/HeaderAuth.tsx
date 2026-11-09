@@ -62,7 +62,7 @@ export default function HeaderAuth() {
           Demo mode
         </span>
       )}
-      <span className="text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md font-mono">
+      <span className="text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md font-mono max-w-[160px] truncate">
         {userEmail}
       </span>
       <button

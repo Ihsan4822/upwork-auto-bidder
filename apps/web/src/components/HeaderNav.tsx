@@ -11,10 +11,10 @@ const NAV_LINKS = [
   { href: '/queue', label: 'Review Queue' },
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/analytics', label: 'Analytics' },
-  { href: '/settings/criteria', label: 'Criteria Settings' },
+  { href: '/settings/criteria', label: 'Criteria' },
   {
     href: '/settings/connection',
-    label: 'Upwork Connection',
+    label: 'Connection',
     isSpecial: true,
   },
 ];
@@ -31,7 +31,7 @@ export default function HeaderNav() {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+      <nav className="hidden md:flex items-center space-x-4 text-sm font-medium shrink-0">
         {NAV_LINKS.map((link) => (
           <Link
             key={link.href}
