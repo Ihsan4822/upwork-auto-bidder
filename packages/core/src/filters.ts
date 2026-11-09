@@ -136,7 +136,7 @@ export function applyHardFilters(job: JobFilterInput, criteria: FilterCriteria):
     }
   }
 
-  // Filter 6: Client spend — only when a minimum is set (> 0) and the spend
+  // Filter 6: Client spend: only when a minimum is set (> 0) and the spend
   // is known. A null spend (not returned by MCP) is not punished.
   if (
     clientMinTotalSpendUsd > 0 &&

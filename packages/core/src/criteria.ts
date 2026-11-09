@@ -1,5 +1,5 @@
 /**
- * criteria.ts — Job criteria settings for the Criteria Settings page.
+ * criteria.ts: Job criteria settings for the Criteria Settings page.
  *
  * WHY: Farid sets his own minimums (hourly rate, fixed budget, client spend)
  * and niche keywords in the app at /settings/criteria. The worker reads them

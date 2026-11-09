@@ -1,5 +1,5 @@
 /**
- * criteria.test.ts — Unit tests for the Criteria Settings module.
+ * criteria.test.ts: Unit tests for the Criteria Settings module.
  *
  * The criteria page saves these values and the worker reads them on every
  * poll cycle. These tests prove the defaults, the validation, and the
@@ -15,7 +15,7 @@ import {
   DEFAULT_JOB_CRITERIA,
 } from '../src/criteria';
 
-describe('Criteria Settings — Module 2 criteria', () => {
+describe('Criteria Settings: Module 2 criteria', () => {
   describe('Defaults', () => {
     it('defaults to the config floors: $15/hr, $100 fixed, no spend minimum', () => {
       expect(DEFAULT_JOB_CRITERIA.hourlyRateFloorUsd).toBe(15);
