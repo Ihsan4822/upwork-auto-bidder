@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 export default function HeaderAuth() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -18,6 +19,7 @@ export default function HeaderAuth() {
       .then((data) => {
         if (isMounted && data?.email) {
           setUserEmail(data.email);
+          setIsDemo(data.isDemo === true);
         }
       })
       .catch(() => {});
@@ -32,6 +34,7 @@ export default function HeaderAuth() {
       await fetch('/api/auth/logout', { method: 'POST' });
     } finally {
       setUserEmail(null);
+      setIsDemo(false);
       router.push('/login');
       router.refresh();
     }
@@ -51,6 +54,14 @@ export default function HeaderAuth() {
 
   return (
     <div className="flex items-center space-x-3 text-xs">
+      {isDemo && (
+        <span
+          className="bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-md font-bold"
+          title="Demo mode: sample data only, nothing real is touched."
+        >
+          Demo mode
+        </span>
+      )}
       <span className="text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md font-mono">
         {userEmail}
       </span>

@@ -22,6 +22,17 @@ is labelled in the queue. Job minimums and niche keywords are set on the Criteri
 page (`/settings/criteria`); the worker
 reads them fresh on every poll cycle, so no restart is needed.
 
+## Try the Demo (no account needed)
+
+Click **Try the demo, no account needed** on the login page. You are signed in instantly as
+the demo user and see sample data only: 6 jobs across all three sources, 5 AI scores, 4
+proposal drafts, and the criteria and connection pages. The header shows a "Demo mode"
+badge. Demo data is isolated by profile, so it never touches Farid's real jobs. In the
+demo, criteria are read-only and connecting a real Upwork account is disabled; the review
+actions (approve, skip, save a draft version) work on the sample jobs so you can try the
+full review workflow. The score reasons include the Clocked Pipeline steps (Guard, Decide,
+Verify) so you can see the Clocked integration on each job detail page.
+
 ---
 
 ## 30-Minute Setup (Fresh Clone)

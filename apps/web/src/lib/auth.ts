@@ -86,6 +86,24 @@ export async function requireSession(
 }
 
 /**
+ * Returns the current user's first profile (ordered by creation), or null.
+ * Every user has exactly one profile in practice (Farid has one, the demo
+ * user has one). Business queries scope by this profile so a user only
+ * ever sees their own jobs, scores, drafts, and portfolio items. The demo
+ * user therefore never sees Farid's real jobs.
+ */
+export async function getCurrentProfile(userId: string) {
+  try {
+    return await prisma.profile.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Creates a new session in the database for a user and returns the raw token and expiry.
  */
 export async function createSession(

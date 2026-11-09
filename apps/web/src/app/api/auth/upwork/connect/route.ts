@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'crypto';
 import { generateOAuthState, ALLOWED_OAUTH_SCOPES } from '@upwork-bidder/core';
 import { requireSession } from '@/lib/auth';
+import { isDemoEmail } from '@/lib/demo';
 
 /**
  * Generates a PKCE code_verifier (32 random bytes, base64url encoded) and
@@ -29,6 +30,15 @@ export async function POST(request: NextRequest) {
   const sessionResult = await requireSession(request);
   if (sessionResult.errorResponse) {
     return sessionResult.errorResponse;
+  }
+
+  // Demo users cannot connect a real Upwork account. The demo profile has
+  // no Upwork account, and the demo is for walking through sample data.
+  if (isDemoEmail(sessionResult.user.email)) {
+    return NextResponse.json(
+      { error: 'Demo mode: connecting a real Upwork account is disabled in the demo.' },
+      { status: 403 },
+    );
   }
 
   try {

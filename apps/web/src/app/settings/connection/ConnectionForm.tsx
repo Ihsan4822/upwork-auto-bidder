@@ -33,9 +33,11 @@ interface ConsentText {
 export default function ConnectionForm({
   consent,
   allowedScopes,
+  isDemo,
 }: {
   consent: ConsentText;
   allowedScopes: string[];
+  isDemo: boolean;
 }) {
   const [connection, setConnection] = useState<ConnectionState>({
     status: 'LOADING',
@@ -166,6 +168,14 @@ export default function ConnectionForm({
         </p>
       </div>
 
+      {isDemo && (
+        <div className="p-4 rounded-md text-sm border bg-amber-50 border-amber-200 text-amber-800">
+          Demo mode: no Upwork account is connected in the demo, and connecting one is disabled
+          here. The consent panel and approved scopes below show exactly what the app requests
+          when a real account is connected.
+        </div>
+      )}
+
       {feedbackMessage && (
         <div
           className={`p-4 rounded-md text-sm border ${
@@ -237,14 +247,16 @@ export default function ConnectionForm({
                 {actionLoading ? 'Disconnecting...' : 'Disconnect Upwork (Delete Token)'}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={handleConnect}
-                disabled={actionLoading}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors disabled:opacity-50"
-              >
-                {actionLoading ? 'Connecting...' : 'Connect Upwork via MCP →'}
-              </button>
+              !isDemo && (
+                <button
+                  type="button"
+                  onClick={handleConnect}
+                  disabled={actionLoading}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors disabled:opacity-50"
+                >
+                  {actionLoading ? 'Connecting...' : 'Connect Upwork via MCP →'}
+                </button>
+              )
             )}
           </div>
         </div>

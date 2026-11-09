@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
-import { requireSession } from '@/lib/auth';
+import { requireSession, getCurrentProfile } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   const sessionResult = await requireSession(request);
@@ -8,8 +8,16 @@ export async function GET(request: NextRequest) {
     return sessionResult.errorResponse;
   }
 
+  // Scope to the current user's profile so a user only sees their own
+  // portfolio items. The demo user sees only the demo profile's items.
+  const profile = await getCurrentProfile(sessionResult.user.id);
+  if (!profile) {
+    return NextResponse.json({ items: [] });
+  }
+
   try {
     const items = await prisma.portfolioItem.findMany({
+      where: { profileId: profile.id },
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({ items });
