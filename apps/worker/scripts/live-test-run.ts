@@ -210,6 +210,7 @@ async function main() {
       budgetType: job.budgetType,
       budgetAmountFixed: job.budgetAmountFixed !== null ? Number(job.budgetAmountFixed) : null,
       hourlyRateMax: job.hourlyRateMax !== null ? Number(job.hourlyRateMax) : null,
+      clientTotalSpend: job.clientTotalSpend !== null ? Number(job.clientTotalSpend) : null,
       paymentVerified: job.paymentVerified,
     };
 

@@ -60,7 +60,7 @@ The scope guard test is at `packages/ai/tests/scope-guard.test.ts`.
 
 The allowed MCP tools (read-only job search only):
 
-- Tools whose names match: `search_jobs`, `get_job`, `get_job_details`, `find_jobs`, `list_jobs`, `list_accounts`
+- Tools whose names match: `search_jobs`, `get_job`, `get_job_details`, `find_jobs`, `list_jobs`, `list_accounts`, `list_freelancer_proposals`
 - Any tool variant that reads job postings from the Upwork MCP server
 
 Banned tool patterns (fail the build if any appear in allowlist or config):
@@ -79,7 +79,7 @@ Banned tool patterns (fail the build if any appear in allowlist or config):
 | Database   | PostgreSQL via Prisma                            |
 | Validation | Zod everywhere (inputs, AI outputs, env vars)    |
 | UI         | Tailwind CSS + shadcn/ui                         |
-| AI Runtime | Gemini 1.5 Pro via `packages/ai/src/provider.ts` |
+| AI Runtime | Gemini 3.5 Flash via `packages/ai/src/provider.ts` |
 | Testing    | Vitest (unit/integration) + Playwright (e2e)     |
 
 ---

@@ -12,6 +12,12 @@ Upwork himself.** This app never submits anything.
 
 > **The app reads jobs. Farid submits proposals. Always.**
 
+Two job sources feed the review queue. Saved searches poll the Upwork marketplace on a
+schedule, and client invitations (jobs where a client invited Farid directly) are fetched
+first each poll cycle and sit on top of the queue with an Invitation badge. Job minimums
+and niche keywords are set on the Criteria Settings page (`/settings/criteria`); the worker
+reads them fresh on every poll cycle, so no restart is needed.
+
 ---
 
 ## 30-Minute Setup (Fresh Clone)
@@ -87,6 +93,10 @@ Small, safe changes anyone can make. Run the tests listed after each change.
 ### Recipe 1 — Change the Fee Floor
 
 > **Change the hourly or fixed-price minimum.**
+
+The floors are set from the Criteria Settings page (`/settings/criteria`) in the running app.
+The worker reads them fresh on every poll cycle, so no restart is needed. To change the
+shipped defaults instead:
 
 1. Open `packages/config/src/settings.ts`
 2. Update `HOURLY_RATE_FLOOR_USD` or `FIXED_PRICE_FLOOR_USD`
@@ -191,7 +201,7 @@ Configured server-side in `.env`:
 ## Running Tests
 
 ```bash
-pnpm test                  # All 80 unit and integration tests (Vitest)
+pnpm test                  # All 160 unit and integration tests (Vitest)
 pnpm test:e2e              # Playwright end-to-end tests
 pnpm guard:scopes          # Scope guard test only (critical — run before every deploy)
 pnpm lint                  # ESLint check

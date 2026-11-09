@@ -87,7 +87,7 @@ describe('UpworkMcpClient', () => {
                         {
                           id: 'job_1',
                           title: 'Amazon A+ Content',
-                          job_type: 'FIXED',
+                          job_type: 'fixed',
                           budget: 200,
                         },
                       ],
@@ -264,5 +264,177 @@ describe('UpworkMcpClient', () => {
     expect(capturedBody?.params?.arguments?.params?.job_id).toBe('upwork_job_999');
     expect(details?.title).toBe('Detailed Amazon Listing Design');
     expect(details?.budget_fixed).toBe(500);
+  });
+
+  it('listInvitations returns invitation jobs and skips already-submitted proposals', async () => {
+    let capturedBody: McpRpcRequest | null = null;
+
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body && (JSON.parse(init.body as string) as McpRpcRequest).method === 'initialize') {
+        return {
+          ok: true,
+          headers: new Headers({ 'mcp-session-id': 'test-session-123' }),
+          text: async () => JSON.stringify({ jsonrpc: '2.0', id: 1, result: {} }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name === 'upwork__list_accounts'
+      ) {
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 2,
+              result: {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      accounts: [{ role: 'TALENT', name: 'Farid Malik', org_uid: 'org_123' }],
+                    }),
+                  },
+                ],
+              },
+            }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name ===
+          'upwork__list_freelancer_proposals'
+      ) {
+        capturedBody = JSON.parse(init.body as string) as McpRpcRequest;
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 3,
+              result: {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      proposals: [
+                        {
+                          status: 'invited',
+                          job: {
+                            id: 'inv_job_1',
+                            title: 'Amazon A+ Content for invited client',
+                            job_type: 'fixed',
+                            budget: 300,
+                          },
+                        },
+                        {
+                          status: 'submitted',
+                          cover_letter: 'I already applied to this one.',
+                          job: {
+                            id: 'sub_job_1',
+                            title: 'Already applied job',
+                            job_type: 'fixed',
+                            budget: 200,
+                          },
+                        },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            }),
+        };
+      }
+
+      return {
+        ok: true,
+        headers: new Headers(),
+        text: async () => JSON.stringify({ jsonrpc: '2.0', id: 99, result: {} }),
+      };
+    }) as unknown as typeof fetch;
+
+    const client = new UpworkMcpClient('test-token', 'https://mcp.upwork.com/mcp', 'Farid Malik');
+    const invitations = await client.listInvitations();
+
+    expect(capturedBody?.params?.name).toBe('upwork__list_freelancer_proposals');
+    expect(capturedBody?.params?.arguments?.org_uid).toBe('org_123');
+    // Only the invited job is returned; the already-submitted proposal is skipped.
+    expect(invitations.length).toBe(1);
+    expect(invitations[0].id).toBe('inv_job_1');
+    expect(invitations[0].title).toBe('Amazon A+ Content for invited client');
+    expect(invitations[0].budget_fixed).toBe(300);
+  });
+
+  it('listInvitations returns an empty list instead of throwing on a JSON-RPC error', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body && (JSON.parse(init.body as string) as McpRpcRequest).method === 'initialize') {
+        return {
+          ok: true,
+          headers: new Headers({ 'mcp-session-id': 'test-session-123' }),
+          text: async () => JSON.stringify({ jsonrpc: '2.0', id: 1, result: {} }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name === 'upwork__list_accounts'
+      ) {
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 2,
+              result: {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      accounts: [{ role: 'TALENT', name: 'Farid Malik', org_uid: 'org_123' }],
+                    }),
+                  },
+                ],
+              },
+            }),
+        };
+      }
+
+      if (
+        init?.body &&
+        (JSON.parse(init.body as string) as McpRpcRequest).params?.name ===
+          'upwork__list_freelancer_proposals'
+      ) {
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: async () =>
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 3,
+              error: { code: -32601, message: 'Method not found' },
+            }),
+        };
+      }
+
+      return {
+        ok: true,
+        headers: new Headers(),
+        text: async () => JSON.stringify({}),
+      };
+    }) as unknown as typeof fetch;
+
+    const client = new UpworkMcpClient('test-token', 'https://mcp.upwork.com/mcp');
+    const invitations = await client.listInvitations();
+
+    // The pipeline must continue with saved searches when the tool is missing.
+    expect(invitations).toEqual([]);
+  });
+
+  it('listInvitations returns an empty list for a non-Upwork (mock) server URL', async () => {
+    const client = new UpworkMcpClient('test-token', 'http://localhost:9999/mock-mcp');
+    const invitations = await client.listInvitations();
+    expect(invitations).toEqual([]);
   });
 });

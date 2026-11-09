@@ -36,6 +36,9 @@ export const SETTINGS_KEYS = {
   HOURLY_RATE_FLOOR_USD: 'hourlyRateFloorUsd',
   FIXED_PRICE_FLOOR_USD: 'fixedPriceFloorUsd',
   DEFAULT_POLL_INTERVAL_MINUTES: 'defaultPollIntervalMinutes',
+  CLIENT_MIN_TOTAL_SPEND_USD: 'clientMinTotalSpendUsd',
+  PAYMENT_VERIFIED_REQUIRED: 'paymentVerifiedRequired',
+  NICHE_KEYWORDS: 'nicheKeywords',
 } as const;
 
 // ── Draft Settings ────────────────────────────────────────────────────────────

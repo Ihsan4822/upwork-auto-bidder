@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/queue', label: 'Review Queue' },
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/analytics', label: 'Analytics' },
+  { href: '/settings/criteria', label: 'Criteria Settings' },
   {
     href: '/settings/connection',
     label: 'Upwork Connection',

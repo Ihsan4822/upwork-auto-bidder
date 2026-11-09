@@ -115,7 +115,7 @@ packages/ui ────────────────────► (com
 ### AI Model Adapter (`packages/ai/src/provider.ts`)
 
 - Single interface: `AiProvider` with methods `score(job)` and `draft(job, portfolioItem)`
-- Current implementation: Gemini 1.5 Pro via `@google/generative-ai`
+- Current implementation: Gemini 3.5 Flash via `@google/generative-ai`
 - Swapping the model = editing this one file only
 - All outputs validated by Zod schemas before returning
 

@@ -97,3 +97,28 @@ If password login is needed in a future phase, it is added without breaking this
 **Reason:** Eliminates duplicate scores across poll cycles, ensures proposals remain grounded without referencing nonexistent samples, and prevents runtime protocol errors when calling Upwork MCP server.
 
 **Rejected:** Silently deleting older duplicate scores from the database (violates audit history retention).
+
+---
+
+## 2026-11-08 · AI model changed from Gemini 1.5 Pro to Gemini 3.5 Flash
+
+**Decision:** Change the default AI model in `packages/ai/src/provider.ts` from `gemini-1.5-pro` to `gemini-3.5-flash` (via `AI_MODEL_NAME`, default `gemini-3.5-flash`).
+
+**Reason:** The live run on 2026-11-08 used gemini-3.5-flash and produced the first real drafts, so the code default now matches the model actually in use. AGENTS.md, ARCHITECTURE.md, and RUNBOOK.md updated to match.
+
+**Rejected:** Keeping the stale 1.5 Pro default in code while the live run used 3.5 Flash (docs and code would disagree about which model scores jobs).
+
+---
+
+## 2026-11-09 · Criteria Settings page and Invitations job source
+
+**Decision:**
+1. Add a Criteria Settings page at `/settings/criteria` backed by the `settings` table. Farid sets his own minimum hourly rate, minimum fixed budget, minimum client total spend, payment-verified required (on/off), and niche keywords. The worker reads them fresh on every poll cycle, so no restart is needed. Defaults are $15/hr, $100 fixed, no spend minimum, payment verified required, and the default Amazon design niche list. The hourly minimum is deliberately NOT blocked from going below Farid's $15/hr Upwork rate; the page shows his rate next to the field so he decides knowingly.
+2. Add a second job source: invitations. The worker calls the Upwork MCP tool `list_freelancer_proposals` FIRST each poll cycle, before the saved searches. Invitation jobs get `source = INVITATION`, are stored like any other job, pass the same hard filters and scoring, and sit on top of the review queue (ordered by source, then posted date) with an Invitation badge. The tool only reads; it never accepts, declines, or submits anything.
+3. Add a `source` column to the `jobs` table (migration `2_criteria_invitations`, default `SEARCH`). The migration must be applied to the live Supabase database before the code that reads it is deployed.
+
+**Reason:** Farid asked for both on 2026-11-08: only relevant jobs should arrive (irrelevant jobs were passing through the broad saved searches), and he wants to set the minimums himself. Invitations are the highest-value jobs because the client chose Farid directly, so they get priority.
+
+**Investigation (invitations):** Upwork's own MCP page and a live tool definition read (2026-11-03) confirm the server can list a freelancer's proposals and invitations, and reading proposals is a read operation (20/min, 250/hour, 750/day). The exact tool name `list_freelancer_proposals` and its response shape are NOT confirmed from public sources, so the client tries that tool and parses defensively: on any failure (unknown tool, unexpected shape, HTTP error) it returns an empty list and logs, and the pipeline continues with saved searches. The first live run must confirm the tool exists and returns invitations; the client logs the response field names (never values) so the shape can be corrected. `list_freelancer_proposals` passes the scope guard (no banned pattern, starts with `list_`).
+
+**Rejected:** Hard-blocking the hourly minimum at $15 (Farid explicitly wants to set it himself, including $5 or $10 examples). Building an invitations workaround that needs new OAuth scopes or write access (the current scopes jobs:read and profile:read are read-only, and the feature must work within them). Scraping the Upwork website for invitations (against the safe model; official MCP route only).

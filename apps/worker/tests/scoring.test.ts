@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { executePipelineCycle } from '../src/pipeline';
 import type { ClockedPipelineResponse } from '@upwork-bidder/clocked';
+import type { UpworkMcpClient } from '@upwork-bidder/ai';
 
 // Mock DB using vi.hoisted
 const { mockPrisma } = vi.hoisted(() => {
@@ -30,6 +31,7 @@ const { mockPrisma } = vi.hoisted(() => {
     },
     setting: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
     jobScore: {
       findFirst: vi.fn(),
@@ -92,6 +94,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
 
   const mockMcpClient = {
     searchJobs: vi.fn().mockResolvedValue({ jobs: [] }),
+    listInvitations: vi.fn().mockResolvedValue([]),
   };
 
   beforeEach(() => {
@@ -101,6 +104,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       { id: 'search-1', queryText: 'Amazon A+', isActive: true, profileId: 'prof-1' },
     ]);
     mockPrisma.setting.findUnique.mockResolvedValue(null);
+    mockPrisma.setting.findMany.mockResolvedValue([]);
     mockPrisma.job.findMany.mockImplementation(async (query: { where: { status: string } }) => {
       if (query.where.status === 'NEW') return [];
       if (query.where.status === 'SCORED_PENDING') return [sampleJob];
@@ -154,7 +158,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       runPipelineForJob: vi.fn().mockResolvedValue(mockResponse),
     };
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient, mockClockedClient as any);
 
     expect(mockClockedClient.runPipelineForJob).toHaveBeenCalledTimes(1);
 
@@ -209,7 +213,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       runPipelineForJob: vi.fn().mockResolvedValue(mockResponse),
     };
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient, mockClockedClient as any);
 
     expect(mockClockedClient.runPipelineForJob).toHaveBeenCalledTimes(1);
 
@@ -254,7 +258,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       runPipelineForJob: vi.fn().mockResolvedValue(mockResponse),
     };
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient, mockClockedClient as any);
 
     expect(mockPrisma.job.update).toHaveBeenCalledWith({
       where: { id: sampleJob.id },
@@ -291,7 +295,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       runPipelineForJob: vi.fn().mockResolvedValue(mockResponse),
     };
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient, mockClockedClient as any);
 
     expect(mockPrisma.job.update).toHaveBeenCalledWith({
       where: { id: sampleJob.id },
@@ -314,7 +318,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       runPipelineForJob: vi.fn().mockRejectedValue(new Error('Clocked 500 Internal Server Error')),
     };
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient, mockClockedClient as any);
 
     expect(mockPrisma.job.update).toHaveBeenCalledWith({
       where: { id: sampleJob.id },
@@ -337,7 +341,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       runPipelineForJob: vi.fn(),
     };
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient, mockClockedClient as any);
 
     // Clocked is NOT called when flag is off
     expect(mockClockedClient.runPipelineForJob).not.toHaveBeenCalled();
@@ -370,7 +374,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       runPipelineForJob: vi.fn(),
     };
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any, mockClockedClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient, mockClockedClient as any);
 
     // 1. Clocked client was NEVER called (no credits spent)
     expect(mockClockedClient.runPipelineForJob).not.toHaveBeenCalled();
@@ -401,7 +405,7 @@ describe('Worker Scoring Path - Clocked Integration', () => {
     });
     mockPrisma.draft.findFirst.mockResolvedValue({ id: 'draft-1' });
 
-    const summary = await executePipelineCycle('prof-1', mockMcpClient as any);
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient);
 
     expect(mockScoreJobWithAi).not.toHaveBeenCalled();
     expect(mockPrisma.jobScore.create).not.toHaveBeenCalled();
@@ -410,5 +414,55 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       data: { status: 'DRAFT_READY' },
     });
     expect(summary.jobsScored).toBe(0);
+  });
+
+  it('fetches invitations first and stores them with source INVITATION', async () => {
+    process.env.CLOCKED_ENABLED = 'false';
+
+    mockMcpClient.listInvitations.mockResolvedValue([
+      {
+        id: 'INV_JOB_001',
+        title: 'Amazon A Plus Content Designer (invited)',
+        description: 'Client invited Farid directly.',
+        budget_type: 'FIXED',
+        budget_fixed: 300,
+        payment_verified: true,
+      },
+    ]);
+    // No NEW jobs to filter in this cycle; the invited job is inserted only.
+    mockPrisma.job.findMany.mockImplementation(async (query: { where: { status: string } }) => {
+      if (query.where.status === 'NEW') return [];
+      if (query.where.status === 'SCORED_PENDING') return [sampleJob];
+      return [];
+    });
+
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient);
+
+    expect(mockMcpClient.listInvitations).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.job.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        upworkJobId: 'INV_JOB_001',
+        source: 'INVITATION',
+      }),
+    });
+    expect(summary.invitationsFound).toBe(1);
+    expect(summary.newJobsFound).toBe(1);
+  });
+
+  it('continues with saved searches when the invitation fetch fails', async () => {
+    process.env.CLOCKED_ENABLED = 'false';
+
+    mockMcpClient.listInvitations.mockRejectedValue(new Error('MCP unavailable'));
+    mockPrisma.job.findMany.mockImplementation(async (query: { where: { status: string } }) => {
+      if (query.where.status === 'NEW') return [];
+      if (query.where.status === 'SCORED_PENDING') return [sampleJob];
+      return [];
+    });
+
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient);
+
+    // The cycle still scores the pending job from saved searches.
+    expect(summary.jobsScored).toBe(1);
+    expect(summary.invitationsFound).toBe(0);
   });
 });

@@ -24,10 +24,13 @@ export type NicheInScope = (typeof NICHES_IN_SCOPE)[number];
  * Case-insensitive substring match.
  *
  * @param text - Job title or description to check
+ * @param keywords - Niche keywords to match against. Defaults to NICHES_IN_SCOPE.
+ *   Pass the user-configured niche list from the settings table to let Farid
+ *   control relevance without a code deploy.
  * @returns true if at least one niche keyword is found
  * @example matchesNiche("Need A Plus Content designer") // true
  */
-export function matchesNiche(text: string): boolean {
+export function matchesNiche(text: string, keywords: readonly string[] = NICHES_IN_SCOPE): boolean {
   const lower = text.toLowerCase();
-  return NICHES_IN_SCOPE.some((niche) => lower.includes(niche.toLowerCase()));
+  return keywords.some((niche) => lower.includes(niche.toLowerCase()));
 }

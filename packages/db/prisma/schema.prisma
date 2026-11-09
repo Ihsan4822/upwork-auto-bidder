@@ -136,6 +136,11 @@ model Job {
   //         IN_REVIEW | APPROVED | SUBMITTED_MANUALLY | SKIPPED | EXPIRED
   status              String    @default("NEW")
 
+  // Where this job came from: SEARCH (saved search poll) or INVITATION
+  // (a client invited Farid directly). Invitations are fetched first each
+  // poll cycle and shown on top of the review queue.
+  source              String    @default("SEARCH")
+
   // Set when status = FILTERED_OUT. Plain words, e.g. "Below Fee Floor"
   filterReason        String?   @map("filter_reason")
 
