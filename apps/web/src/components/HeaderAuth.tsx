@@ -62,13 +62,13 @@ export default function HeaderAuth() {
           Demo mode
         </span>
       )}
-      <span className="text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md font-mono max-w-[160px] truncate">
+      <span className="text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md font-mono max-w-[160px] truncate hidden md:inline-block">
         {userEmail}
       </span>
       <button
         type="button"
         onClick={handleLogout}
-        className="text-red-600 hover:text-red-700 font-medium transition-colors"
+        className="text-red-600 hover:text-red-700 font-medium transition-colors whitespace-nowrap"
       >
         Sign out
       </button>
