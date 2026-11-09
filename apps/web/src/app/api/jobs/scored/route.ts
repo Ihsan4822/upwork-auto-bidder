@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const scoredJobs = await prisma.jobScore.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: 100,
       include: {
         job: {
           select: {
@@ -34,7 +34,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ scores: scoredJobs });
+    // Deduplicate by jobId: keep only the latest score per unique job
+    const seenJobIds = new Set<string>();
+    const latestScores = [];
+    for (const score of scoredJobs) {
+      if (!seenJobIds.has(score.jobId)) {
+        seenJobIds.add(score.jobId);
+        latestScores.push(score);
+      }
+    }
+
+    return NextResponse.json({ scores: latestScores });
   } catch (err: unknown) {
     return NextResponse.json(
       { scores: [], error: err instanceof Error ? err.message : 'Database error' },

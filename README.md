@@ -131,6 +131,50 @@ Small, safe changes anyone can make. Run the tests listed after each change.
 
 ---
 
+## Clocked Agent Pipeline (Module 3 Verification)
+
+The application integrates with the Rezolve Clocked pipeline (`packages/clocked`) for multi-stage safety, extraction, and automated decision making before any proposal draft is generated.
+
+### Six Pipeline Stages
+
+1. **Guard (Prompt Injection Detection):**
+   - Scans job descriptions for malicious prompt injection or instructions designed to manipulate AI behavior.
+   - Any job triggering high or critical injection severity is immediately routed to human review (`IN_REVIEW`), skipping automated scoring and drafting.
+
+2. **Protect (PII Redaction):**
+   - Inspects job content for sensitive personal identification information and ensures client privacy.
+
+3. **Extract (Attribute Extraction):**
+   - Extracts structured project attributes (budget amount, client total spend, client hire rate, proposal count) with strict confidence scoring.
+
+4. **Decide (Classification and Action Recommendation):**
+   - Evaluates project fit, budget validity, and client quality against Farid's criteria.
+   - Generates calibrated probabilities across `APPLY_PLUS_BOOST`, `APPLY`, and `SKIP`.
+   - Requires decision confidence >= 0.75 floor. If confidence falls below 0.75, the job is routed to human review.
+
+5. **Fill (Structured Scorecard):**
+   - Populates rate floor compliance, niche match quality, and factual justification reasons.
+
+6. **Verify (Grounding and Hallucination Check):**
+   - Cross-checks all assertions and extracted attributes against the raw job posting text.
+   - If verification fails or claims are ungrounded, the job is safely routed to human review.
+
+### Human Review Fallback
+
+Clocked acts as a strict gatekeeper:
+- `APPLY` / `APPLY_PLUS_BOOST`: Proceeds to draft generation via Gemini and sets status to `DRAFT_READY`.
+- `SKIP`: Marked as `SKIPPED` in the database with logged reasons.
+- Guard flag, low confidence (< 0.75), or ungrounded claim: Automatically routed to `IN_REVIEW` for human assessment. Zero automated assumptions made.
+
+### Environment Setup
+
+Configured server-side in `.env`:
+- `CLOCKED_API_KEY`: Rezolve Clocked live API key (e.g. `clk_live_...`).
+- `CLOCKED_BASE_URL`: API endpoint (defaults to `https://clocked.rezolve.ai/clocked`).
+- `CLOCKED_ENABLED`: Set to `true` or `1` to activate Clocked evaluation in the worker pipeline.
+
+---
+
 ## Key Documents
 
 | Document                                       | Purpose                                               |

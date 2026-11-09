@@ -65,7 +65,7 @@ export class AiProviderError extends Error {
  */
 export function createAiProvider(): AiProvider {
   const apiKey = process.env.AI_API_KEY;
-  const modelName = process.env.AI_MODEL_NAME ?? 'gemini-1.5-pro';
+  const modelName = process.env.AI_MODEL_NAME ?? 'gemini-3.5-flash';
   if (!apiKey) {
     throw new Error('AI_API_KEY environment variable is required');
   }

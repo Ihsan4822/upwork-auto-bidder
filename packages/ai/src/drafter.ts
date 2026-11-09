@@ -64,7 +64,15 @@ export function validateProposalClaims(text: string): { valid: boolean; reason: 
   if (!text.includes('Farid Malik')) {
     return {
       valid: false,
-      reason: 'Draft missing mandatory sign-off "— Farid Malik"',
+      reason: 'Draft missing mandatory sign-off "Farid Malik"',
+    };
+  }
+
+  // Ensure no "Not Available" placeholder text in draft
+  if (text.includes('Not Available')) {
+    return {
+      valid: false,
+      reason: 'Draft must not reference nonexistent samples or contain "Not Available" text',
     };
   }
 
@@ -105,23 +113,37 @@ export async function draftProposalWithAi(
     budgetDisplay = `$${job.hourlyRateMin ?? '?'}-$${job.hourlyRateMax ?? '?'}/hr`;
   }
 
-  // Honest portfolio sample display — never invent samples or links if none matched
-  const portfolioTitle = portfolioItem ? portfolioItem.title : 'Not Available';
-  const portfolioLink = portfolioItem ? portfolioItem.link : 'Not Available';
+  // Honest portfolio sample display: never invent samples or links if none matched
+  let portfolioSection = '';
+  let portfolioRule =
+    '2. PROOF (1-2 sentences): State your calm, factual design capabilities in this specific niche without referencing nonexistent portfolio samples. Do not invent any sample titles or links, and never write "Not Available".';
+
+  if (portfolioItem && portfolioItem.title && portfolioItem.link) {
+    portfolioSection = `Portfolio Sample: "${portfolioItem.title}" - ${portfolioItem.link}`;
+    portfolioRule =
+      '2. PROOF (1-2 sentences): Reference the portfolio sample above by its exact title. State a calm, factual capability. No invented numbers, no guaranteed conversions, no fake clients.';
+  }
 
   // Fill prompt
-  const filledPrompt = promptTemplate
+  let filledPrompt = promptTemplate
     .replace('{{JOB_TITLE}}', job.title || 'Amazon Design Project')
     .replace('{{JOB_DESCRIPTION}}', job.description || 'Project details on Upwork')
     .replace('{{JOB_BUDGET}}', budgetDisplay)
-    .replace('{{CLIENT_COUNTRY}}', job.clientCountry || 'Not Available')
-    .replace('{{PORTFOLIO_TITLE}}', portfolioTitle)
-    .replace('{{PORTFOLIO_LINK}}', portfolioLink);
+    .replace('{{CLIENT_COUNTRY}}', job.clientCountry || 'Unspecified')
+    .replace('{{PORTFOLIO_SECTION}}', portfolioSection)
+    .replace('{{PORTFOLIO_RULE}}', portfolioRule);
+
+  // Backward compatibility for templates using {{PORTFOLIO_TITLE}} / {{PORTFOLIO_LINK}}
+  if (filledPrompt.includes('{{PORTFOLIO_TITLE}}')) {
+    filledPrompt = filledPrompt
+      .replace('{{PORTFOLIO_TITLE}}', portfolioItem ? portfolioItem.title : '')
+      .replace('{{PORTFOLIO_LINK}}', portfolioItem ? portfolioItem.link : '');
+  }
 
   const rawDraft = await provider.generateText(filledPrompt);
   const validatedOutput = parseDraftOutput(rawDraft);
 
-  const draftText = validatedOutput.text;
+  const draftText = validatedOutput.text.replace(/—/g, ' - ');
   const wordCount = countWords(draftText);
 
   // Check for hype or unprovable claims

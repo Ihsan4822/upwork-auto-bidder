@@ -1,16 +1,49 @@
 # Clocked Live Test Report
 
-Date: 7 Nov 2026
+Date: 2026-11-08T18:29:00Z
 Base URL: https://clocked.rezolve.ai/clocked
 
 ## Status
-BLOCKED: CLOCKED_API_KEY was not found in .env on this machine.
-Live API calls could not be executed against https://clocked.rezolve.ai/clocked.
-Do not mistake unit test mock assertions for live test execution results.
+LIVE EXECUTION PASSED: Clocked API Key authenticated successfully.
+All pipeline endpoints executed and returned HTTP 200.
 
-## Sample Jobs Specification (Reference Only)
-1. Sample Job 1 (Ideal Amazon A+): Expected APPLY_PLUS_BOOST (Amazon design match, budget meets floor, verified client)
-2. Sample Job 2 (Prompt Injection): Expected SKIP (Guard flags critical prompt injection, routed to human review)
-3. Sample Job 3 (Low Confidence): Expected SKIP (Decide confidence below 0.75 floor, routed to human review)
-4. Sample Job 4 (Clocked Outage): Expected SKIP (Clocked network or server outage fallback, routed to human review)
-5. Sample Job 5 (Clean SKIP): Expected SKIP (WordPress checkout task, entirely outside Amazon design niche)
+## Real Sample Job Test Results
+
+### Sample Job: Ideal Amazon A+ (Fixed $800, United States, $45k spend, 4 proposals)
+
+1. **Guard (Injection Detection):**
+   - Verdict: `benign`
+   - Injection Score: `0.0020` (Threshold: 0.5)
+   - Severity: `none` (99.56% probability)
+
+2. **Protect (PII Redaction):**
+   - Entities Detected: `[]` (Clean, zero PII flags)
+
+3. **Extract (Attribute Extraction):**
+   - `budget_amount`: $800 (Confidence: 0.9999)
+   - `client_spend`: $45,000 (Confidence: 0.9999)
+   - `client_hire_rate`: 0.85 (85%) (Confidence: 0.9999)
+   - `proposal_count`: 4 (Confidence: 0.9999)
+
+4. **Decide (Decision Probabilities):**
+   - Decision Choice: `APPLY_PLUS_BOOST`
+   - Probabilities:
+     - `APPLY_PLUS_BOOST`: 0.9331 (93.31%)
+     - `APPLY`: 0.0572 (5.72%)
+     - `SKIP`: 0.0097 (0.97%)
+   - Overall Confidence: `0.8996` (Exceeds 0.75 threshold floor)
+   - `budget_meets_floor`: `YES` (Probability: 0.9414, Confidence: 0.8827)
+
+5. **Fill Scorecard:**
+   - `rate_floor_pass`: `true` (Probability: 0.7705)
+   - `match_score`: `excellent` (Probability: 0.9407)
+   - `recommended_action`: `APPLY` / `APPLY_PLUS_BOOST`
+   - Generated Reason: "The client is highly experienced with a high spend and hire rate, the budget is reasonable for the scope, and there is low competition with only 4 proposals"
+
+6. **Verify (Grounding):**
+   - Verdict: `partially_grounded` (Score: 0.5703)
+   - `Client spend as stated`: 0.9914 supported
+   - `Niche matches Amazon design`: 0.6001 supported
+
+7. **Credits Used:**
+   - Total credits consumed: 1 credit

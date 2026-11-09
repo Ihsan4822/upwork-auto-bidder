@@ -32,9 +32,11 @@ const { mockPrisma } = vi.hoisted(() => {
       findUnique: vi.fn(),
     },
     jobScore: {
+      findFirst: vi.fn(),
       create: vi.fn(),
     },
     draft: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
     },
@@ -106,10 +108,12 @@ describe('Worker Scoring Path - Clocked Integration', () => {
     });
     mockPrisma.job.findUnique.mockResolvedValue(null);
     mockPrisma.job.update.mockResolvedValue(sampleJob);
+    mockPrisma.jobScore.findFirst.mockResolvedValue(null);
     mockPrisma.jobScore.create.mockResolvedValue({ id: 'score-1' });
     mockPrisma.portfolioItem.findMany.mockResolvedValue([
       { id: 'port-1', title: 'Sample A+ Portfolio', nicheTags: ['Amazon A+ Content'], link: 'https://example.com' },
     ]);
+    mockPrisma.draft.findFirst.mockResolvedValue(null);
     mockPrisma.draft.findMany.mockResolvedValue([]);
     mockPrisma.draft.create.mockResolvedValue({ id: 'draft-1' });
 
@@ -384,6 +388,27 @@ describe('Worker Scoring Path - Clocked Integration', () => {
     expect(mockDraftProposalWithAi).not.toHaveBeenCalled();
     expect(mockPrisma.draft.create).not.toHaveBeenCalled();
     expect(summary.draftsGenerated).toBe(0);
+    expect(summary.jobsScored).toBe(0);
+  });
+
+  it('skips duplicate scoring when job already has an existing score', async () => {
+    process.env.CLOCKED_ENABLED = 'false';
+
+    mockPrisma.jobScore.findFirst.mockResolvedValue({
+      id: 'existing-score-1',
+      score: 80,
+      label: 'APPLY',
+    });
+    mockPrisma.draft.findFirst.mockResolvedValue({ id: 'draft-1' });
+
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as any);
+
+    expect(mockScoreJobWithAi).not.toHaveBeenCalled();
+    expect(mockPrisma.jobScore.create).not.toHaveBeenCalled();
+    expect(mockPrisma.job.update).toHaveBeenCalledWith({
+      where: { id: sampleJob.id },
+      data: { status: 'DRAFT_READY' },
+    });
     expect(summary.jobsScored).toBe(0);
   });
 });

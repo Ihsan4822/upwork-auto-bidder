@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     displayName: user.email.split('@')[0],
     scopesGranted: [],
     mcpServerUrl: process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp',
+    registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
   };
 
   try {
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest) {
       scopesGranted: activeToken?.scopesGranted ?? [],
       mcpServerUrl: process.env.UPWORK_MCP_URL || 'https://mcp.upwork.com/mcp',
       clientId,
+      registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
       needsReconnect: Boolean(needsReconnect),
       reconnectReason: needsReconnect
         ? 'Token refresh failed. Click Reconnect Upwork to re-authorise.'

@@ -53,7 +53,10 @@ export default function UpworkConnectionPage() {
       clearTimeout(timer);
       if (res.ok) {
         const data = await res.json();
-        setConnection(data);
+        setConnection({
+          registeredAppName: 'Upwork Proposal Assistant (Farid Malik)',
+          ...data,
+        });
       } else {
         // Show unknown state instead of a wrong DISCONNECTED on slow cold starts or errors
         setConnection((prev) => ({ ...prev, status: 'UNKNOWN' }));
