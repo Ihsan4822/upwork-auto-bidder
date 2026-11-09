@@ -22,9 +22,11 @@ const FARID_HOURLY_RATE_USD = 15;
 export default function CriteriaForm({
   initialCriteria,
   defaultCriteria,
+  loadFailed,
 }: {
   initialCriteria: JobCriteria;
   defaultCriteria: JobCriteria;
+  loadFailed: boolean;
 }) {
   const [criteria, setCriteria] = useState<JobCriteria>({ ...initialCriteria });
   const [saving, setSaving] = useState(false);
@@ -32,7 +34,11 @@ export default function CriteriaForm({
   const [feedbackMessage, setFeedbackMessage] = useState<{
     type: 'success' | 'error';
     text: string;
-  } | null>(null);
+  } | null>(
+    loadFailed
+      ? { type: 'error', text: 'Could not load the current criteria. Showing defaults.' }
+      : null,
+  );
 
   async function handleSave() {
     setSaving(true);

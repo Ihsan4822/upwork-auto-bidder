@@ -11,7 +11,7 @@ import CriteriaForm from './CriteriaForm';
  * @upwork-bidder/core barrel from a client component pulls the whole barrel
  * into the browser bundle, including token-service and the Prisma client,
  * which uses Node's `fs` module. That broke the Vercel production build
- * (PR #16 and PR #17 both failed to compile with "Can't resolve 'fs'").
+ * (PR #15, PR #16, and PR #17 all failed to compile with "Can't resolve 'fs'").
  * The form itself imports nothing from core at runtime, only the JobCriteria
  * type, which is erased at compile time.
  *
@@ -28,6 +28,7 @@ const CRITERIA_KEYS = [
 
 export default async function CriteriaSettingsPage() {
   let criteria;
+  let loadFailed = false;
   try {
     const rows = await prisma.setting.findMany({
       where: { key: { in: CRITERIA_KEYS } },
@@ -41,7 +42,14 @@ export default async function CriteriaSettingsPage() {
     // Database read failed: show defaults. The form still works and the
     // save path reports the real error.
     criteria = { ...DEFAULT_JOB_CRITERIA };
+    loadFailed = true;
   }
 
-  return <CriteriaForm initialCriteria={criteria} defaultCriteria={DEFAULT_JOB_CRITERIA} />;
+  return (
+    <CriteriaForm
+      initialCriteria={criteria}
+      defaultCriteria={DEFAULT_JOB_CRITERIA}
+      loadFailed={loadFailed}
+    />
+  );
 }
