@@ -14,27 +14,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 overflow-x-clip">
         <header className="border-b border-slate-200 bg-white sticky top-0 z-10 shadow-sm relative">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
               <span className="bg-emerald-600 text-white font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded text-xs sm:text-sm tracking-wide shrink-0">
                 UAB
               </span>
               <div className="min-w-0">
                 <h1 className="text-sm sm:text-base font-semibold text-slate-900 leading-tight truncate">
-                  Upwork Proposal Assistant
+                  Upwork Assistant
                 </h1>
-                <p className="text-[10px] sm:text-xs text-slate-500 truncate">Internal MVP . Human-Submit Only</p>
+                <p className="text-[10px] sm:text-xs text-slate-500 truncate hidden lg:block">Internal MVP . Human-Submit Only</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
+            <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
               <HeaderNav />
               <HeaderAuth />
             </div>
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
+        <main className="max-w-7xl mx-auto px-4 py-8">{children}</main>
       </body>
     </html>
   );
