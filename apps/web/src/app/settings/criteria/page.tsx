@@ -3,6 +3,20 @@ import { DEFAULT_JOB_CRITERIA, parseStoredCriteria } from '@upwork-bidder/core';
 import CriteriaForm from './CriteriaForm';
 
 /**
+ * Always render this page on the server at request time, never prerender
+ * it statically at build time. The page reads the criteria from the
+ * settings table, and at build time the database is not reachable: the
+ * build environment has no production DATABASE_URL, so Prisma falls back
+ * to the local-dev default (localhost:5432) and the read fails. The page
+ * then bakes the "Could not load the current criteria" banner and the
+ * defaults into the static HTML, and that stale page is served on every
+ * visit even though the database works fine at runtime (the API route,
+ * which is dynamic, returns the real stored criteria). A settings page
+ * must also show fresh values after a save, not a build-time snapshot.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
  * Criteria Settings page.
  *
  * Server Component: it reads the current criteria from the settings table
