@@ -115,3 +115,9 @@ A merged PR with stale docs is incomplete work.
 If you update business logic, update the relevant doc.
 If you add a feature, update OPEN-ITEMS (remove it from deferred).
 If you make an architectural decision, add it to DECISIONS.md.
+
+## Client Component Rule (2026-11-09, build failure)
+
+**No client component may import `@upwork-bidder/core` or `@upwork-bidder/db` at runtime.**
+The core barrel re-exports everything, including token-service, which imports the Prisma client, and the db client imports Node's `fs` module. No package declares `"sideEffects": false`, so webpack pulls the whole barrel into the browser bundle and the Vercel production build fails with "Can't resolve 'fs'". This broke the PR #15, PR #16, and PR #17 deploys while the live site stayed on the older PR #14 build.
+The fix pattern: a Server Component page reads what the form needs (criteria, consent text, scope list) and passes it as props to a Client Component form. The form imports nothing from core or db at runtime. Type-only imports (`import type`) are fine because they are erased at compile time. Do not remove the `fs` loader from the db client to fix this: the worker on Ihsan's PC has no dotenv dependency and relies on that loader to find DATABASE_URL in its .env file.
