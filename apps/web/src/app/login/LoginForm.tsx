@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 function LoginFormContent() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'SENT'>('IDLE');
+  const [demoLoading, setDemoLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(
     null,
   );
@@ -89,6 +90,30 @@ function LoginFormContent() {
     }
   }
 
+  async function handleDemo() {
+    setDemoLoading(true);
+    setFeedback(null);
+    try {
+      const res = await fetch('/api/auth/demo', { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setFeedback({
+          type: 'error',
+          text: data?.error || 'Could not start the demo. Please try again.',
+        });
+        setDemoLoading(false);
+        return;
+      }
+      window.location.href = '/';
+    } catch (err: unknown) {
+      setDemoLoading(false);
+      setFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Could not start the demo. Please try again.',
+      });
+    }
+  }
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg border border-slate-200 shadow-sm">
@@ -116,6 +141,26 @@ function LoginFormContent() {
             {feedback.text}
           </div>
         )}
+
+        <div>
+          <button
+            type="button"
+            onClick={handleDemo}
+            disabled={demoLoading}
+            className="w-full flex justify-center py-2.5 px-4 border border-emerald-600 rounded-md shadow-sm text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 transition-colors"
+          >
+            {demoLoading ? 'Starting demo...' : 'Try the demo, no account needed'}
+          </button>
+          <p className="mt-2 text-xs text-slate-500 text-center">
+            Explore with sample jobs, scores, and drafts. Demo data only, nothing real is touched.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs text-slate-400">
+          <span className="flex-1 border-t border-slate-200" />
+          <span>or sign in with a magic link</span>
+          <span className="flex-1 border-t border-slate-200" />
+        </div>
 
         {status === 'SENT' ? (
           <div className="text-center space-y-4">

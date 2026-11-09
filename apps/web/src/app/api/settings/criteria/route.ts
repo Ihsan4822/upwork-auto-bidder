@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 import { requireSession } from '@/lib/auth';
+import { isDemoEmail } from '@/lib/demo';
 import {
   CriteriaSchema,
   parseStoredCriteria,
@@ -56,6 +57,16 @@ export async function POST(request: NextRequest) {
   const sessionResult = await requireSession(request);
   if (sessionResult.errorResponse) {
     return sessionResult.errorResponse;
+  }
+
+  // Criteria are global settings shared by the worker. A demo user must
+  // not change them, because that would change Farid's live filtering.
+  // Demo users see the criteria read-only; the form disables Save for them.
+  if (isDemoEmail(sessionResult.user.email)) {
+    return NextResponse.json(
+      { error: 'Demo mode: criteria are read-only. Sign up to manage your own criteria.' },
+      { status: 403 },
+    );
   }
 
   try {

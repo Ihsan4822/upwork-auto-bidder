@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   '/login',
   '/api/auth/login/request',
   '/api/auth/login/verify',
+  '/api/auth/demo',
   '/api/auth/upwork/client-metadata.json',
 ];
 

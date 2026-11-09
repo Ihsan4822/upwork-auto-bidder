@@ -1,4 +1,7 @@
-import { getPlainLanguageConsentText, ALLOWED_OAUTH_SCOPES } from '@upwork-bidder/core';
+import { cookies } from 'next/headers';
+import { prisma } from '@upwork-bidder/db';
+import { getPlainLanguageConsentText, ALLOWED_OAUTH_SCOPES, hashToken } from '@upwork-bidder/core';
+import { isDemoEmail } from '@/lib/demo';
 import ConnectionForm from './ConnectionForm';
 
 /**
@@ -19,8 +22,26 @@ import ConnectionForm from './ConnectionForm';
  * from /api/auth/upwork/status, because that endpoint has a 10 second
  * timeout for slow server cold starts and a Retry button.
  */
-export default function UpworkConnectionPage() {
+export default async function UpworkConnectionPage() {
+  // The demo user has no Upwork account to connect, so the form hides the
+  // Connect button and shows a note instead. The consent panel and scopes
+  // below still show what the app requests.
+  let isDemo = false;
+  try {
+    const cookieStore = await cookies();
+    const rawToken = cookieStore.get('app_session')?.value;
+    if (rawToken && rawToken.length >= 32) {
+      const session = await prisma.session.findUnique({
+        where: { sessionTokenHash: hashToken(rawToken) },
+        include: { user: true },
+      });
+      isDemo = isDemoEmail(session?.user.email);
+    }
+  } catch {
+    isDemo = false;
+  }
+
   const consent = getPlainLanguageConsentText();
   const allowedScopes = [...ALLOWED_OAUTH_SCOPES];
-  return <ConnectionForm consent={consent} allowedScopes={allowedScopes} />;
+  return <ConnectionForm consent={consent} allowedScopes={allowedScopes} isDemo={isDemo} />;
 }

@@ -23,10 +23,12 @@ export default function CriteriaForm({
   initialCriteria,
   defaultCriteria,
   loadFailed,
+  isDemo,
 }: {
   initialCriteria: JobCriteria;
   defaultCriteria: JobCriteria;
   loadFailed: boolean;
+  isDemo: boolean;
 }) {
   const [criteria, setCriteria] = useState<JobCriteria>({ ...initialCriteria });
   const [saving, setSaving] = useState(false);
@@ -135,6 +137,13 @@ export default function CriteriaForm({
           next poll cycle, no restart needed.
         </p>
       </div>
+
+      {isDemo && (
+        <div className="p-4 rounded-md text-sm border bg-amber-50 border-amber-200 text-amber-800">
+          Demo mode: criteria are read-only. These are the live criteria, but saving is disabled
+          so the demo cannot change Farid&apos;s filtering.
+        </div>
+      )}
 
       {feedbackMessage && (
         <div
@@ -246,7 +255,7 @@ export default function CriteriaForm({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || criteria.nicheKeywords.length === 0}
+            disabled={saving || criteria.nicheKeywords.length === 0 || isDemo}
             className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save criteria'}

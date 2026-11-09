@@ -1,5 +1,7 @@
+import { cookies } from 'next/headers';
 import { prisma } from '@upwork-bidder/db';
-import { DEFAULT_JOB_CRITERIA, parseStoredCriteria } from '@upwork-bidder/core';
+import { DEFAULT_JOB_CRITERIA, parseStoredCriteria, hashToken } from '@upwork-bidder/core';
+import { isDemoEmail } from '@/lib/demo';
 import CriteriaForm from './CriteriaForm';
 
 /**
@@ -41,6 +43,23 @@ const CRITERIA_KEYS = [
 ];
 
 export default async function CriteriaSettingsPage() {
+  // The demo user sees the criteria read-only: the form disables Save and
+  // the API rejects demo writes, because criteria are global settings that
+  // drive Farid's live worker filtering.
+  let isDemo = false;
+  try {
+    const cookieStore = await cookies();
+    const rawToken = cookieStore.get('app_session')?.value;
+    if (rawToken && rawToken.length >= 32) {
+      const session = await prisma.session.findUnique({
+        where: { sessionTokenHash: hashToken(rawToken) },
+        include: { user: true },
+      });
+      isDemo = isDemoEmail(session?.user.email);
+    }
+  } catch {
+    isDemo = false;
+  }
   let criteria;
   let loadFailed = false;
   try {
@@ -64,6 +83,7 @@ export default async function CriteriaSettingsPage() {
       initialCriteria={criteria}
       defaultCriteria={DEFAULT_JOB_CRITERIA}
       loadFailed={loadFailed}
+      isDemo={isDemo}
     />
   );
 }

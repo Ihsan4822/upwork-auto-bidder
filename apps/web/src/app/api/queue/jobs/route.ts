@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
-import { requireSession } from '@/lib/auth';
+import { requireSession, getCurrentProfile } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   const sessionResult = await requireSession(request);
@@ -8,11 +8,18 @@ export async function GET(request: NextRequest) {
     return sessionResult.errorResponse;
   }
 
+  // Scope to the current user's profile so a user only sees their own
+  // jobs in the queue. The demo user sees only the demo profile's jobs.
+  const profile = await getCurrentProfile(sessionResult.user.id);
+  if (!profile) {
+    return NextResponse.json({ jobs: [] });
+  }
+
   const { searchParams } = new URL(request.url);
   const statusFilter = searchParams.get('status');
 
   try {
-    const whereClause: Record<string, unknown> = {};
+    const whereClause: Record<string, unknown> = { profileId: profile.id };
 
     if (statusFilter && statusFilter !== 'ALL') {
       whereClause.status = statusFilter;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@upwork-bidder/db';
 import { z } from 'zod';
-import { requireSession } from '@/lib/auth';
+import { requireSession, getCurrentProfile } from '@/lib/auth';
 
 const AnalyticsEntrySchema = z.object({
   jobId: z.string().min(1),
@@ -43,6 +43,16 @@ export async function POST(request: NextRequest) {
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    // Verify the job belongs to the current user's profile, so a user
+    // (including the demo user) can only write analytics for their own jobs.
+    const profile = await getCurrentProfile(sessionResult.user.id);
+    if (!profile || job.profileId !== profile.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to act on this job' },
+        { status: 403 },
+      );
     }
 
     const entry = await prisma.analyticsEntry.upsert({

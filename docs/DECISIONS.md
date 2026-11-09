@@ -164,3 +164,17 @@ If password login is needed in a future phase, it is added without breaking this
 **Decision:** Add `export const dynamic = 'force-dynamic'` to the criteria page. It now renders on the server at request time and reads the database with the runtime DATABASE_URL, like the API route. A settings page must also show fresh values after a save, not a build-time snapshot, so static prerendering was wrong for this page regardless of the build-time database issue.
 
 **Note:** The build-time DATABASE_URL gap (Turborepo warnings that env vars are missing from turbo.json) is a separate, pre-existing issue. It does not affect runtime reads on Vercel, and fixing it is not needed for this page now that the page is dynamic. The connection page does not read the database server-side, so it needs no change.
+
+---
+
+## 2026-11-09 · Demo mode for judges (one-click, no email, sample data only)
+
+**Problem:** The app is built for Farid only: login is restricted to two authorized emails, and the Upwork connection is Farid's profile only. A Clocked challenge judge hitting the demo link would be stuck at the login page. Full open registration (anyone signs up, attaches their own Upwork profile) is not possible before the deadline: Resend's test domain only delivers magic links to one email, and Upwork blocks the Vercel callback URL, so a judge cannot connect their own Upwork account through the live app (that needs an Upwork Support allowlist request, which takes days).
+
+**Decision:** Add a Demo mode. A "Try the demo, no account needed" button on the login page signs the judge in instantly (POST /api/auth/demo, no email, no magic link) as a fixed demo user (demo@upwork-auto-bidder.demo) with its own demo profile and seeded sample data. The header shows a "Demo mode" badge, the criteria page is read-only for demo users, the connection page hides the Connect button, and the Upwork connect API rejects demo users.
+
+**Isolation:** Every business query is now scoped to the current user's profile (getCurrentProfile in lib/auth.ts). The demo user sees only the demo profile's jobs, scores, drafts, and portfolio items; Farid sees only his. The demo profile has no Upwork OAuth tokens, so the worker never fetches real jobs for it, and all demo jobs are in terminal states (DRAFT_READY, FILTERED_OUT, SKIPPED, SUBMITTED_MANUALLY), so the worker never re-processes them. The criteria settings are global, so the criteria POST rejects demo users (a demo change would change Farid's live filtering). Queue actions (approve, skip, save draft) are allowed for demo users because they are scoped by profile and only touch demo jobs, so a judge can try the review workflow.
+
+**Demo data:** Seeded by demo-seed.sql (goal files), 6 jobs across all three sources (1 invitation, 1 notification, 4 search), 5 scores, 4 drafts in Farid's proposal formula, 3 portfolio items, 1 analytics entry. Dashboard stats from this data: Jobs Found 6, Filtered Out 1, Scored by AI 5 (3 Apply, 1 Boost), Submitted Manually 1. Score reasons include the Clocked Pipeline steps (Guard, Decide, Verify) so a judge sees the Clocked integration on the job detail page.
+
+**Verification:** Tests 164/164, scope guard 19/19, web lint 0, web typecheck 17 (baseline), 0 em dashes in new lines, local next build shows no fs error (only the pre-existing Prisma generate limit). The seed still needs applying in Supabase and the live demo login still needs a browser check.
