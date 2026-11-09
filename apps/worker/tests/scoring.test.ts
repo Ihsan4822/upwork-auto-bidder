@@ -94,11 +94,19 @@ describe('Worker Scoring Path - Clocked Integration', () => {
 
   const mockMcpClient = {
     searchJobs: vi.fn().mockResolvedValue({ jobs: [] }),
+    listNotificationJobs: vi.fn().mockResolvedValue([]),
     listInvitations: vi.fn().mockResolvedValue([]),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset the MCP mocks to empty defaults. Individual tests override
+    // these; clearAllMocks alone does not reset implementations, so a
+    // mockResolvedValue set in one test would leak into the next.
+    mockMcpClient.searchJobs.mockResolvedValue({ jobs: [] });
+    mockMcpClient.listNotificationJobs.mockResolvedValue([]);
+    mockMcpClient.listInvitations.mockResolvedValue([]);
 
     mockPrisma.savedSearch.findMany.mockResolvedValue([
       { id: 'search-1', queryText: 'Amazon A+', isActive: true, profileId: 'prof-1' },
@@ -414,6 +422,40 @@ describe('Worker Scoring Path - Clocked Integration', () => {
       data: { status: 'DRAFT_READY' },
     });
     expect(summary.jobsScored).toBe(0);
+  });
+
+  it('fetches notification jobs first and stores them with source NOTIFICATION', async () => {
+    process.env.CLOCKED_ENABLED = 'false';
+
+    mockMcpClient.listNotificationJobs.mockResolvedValue([
+      {
+        id: 'NOTIF_JOB_001',
+        title: 'Amazon A Plus Content Designer (new job alert)',
+        description: 'Upwork matched this job to Farid.',
+        budget_type: 'FIXED',
+        budget_fixed: 250,
+        payment_verified: true,
+      },
+    ]);
+    // No NEW jobs to filter in this cycle; the notification job is inserted only.
+    mockPrisma.job.findMany.mockImplementation(async (query: { where: { status: string } }) => {
+      if (query.where.status === 'NEW') return [];
+      if (query.where.status === 'SCORED_PENDING') return [sampleJob];
+      return [];
+    });
+
+    const summary = await executePipelineCycle('prof-1', mockMcpClient as unknown as UpworkMcpClient);
+
+    expect(mockMcpClient.listNotificationJobs).toHaveBeenCalledTimes(1);
+    expect(mockMcpClient.listInvitations).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.job.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        upworkJobId: 'NOTIF_JOB_001',
+        source: 'NOTIFICATION',
+      }),
+    });
+    expect(summary.notificationsFound).toBe(1);
+    expect(summary.newJobsFound).toBe(1);
   });
 
   it('fetches invitations first and stores them with source INVITATION', async () => {
